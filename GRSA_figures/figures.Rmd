@@ -1,0 +1,1822 @@
+---
+title: "figures for GRSA"
+author: "pengchen"
+date: "2023-07-12"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,warning = FALSE)
+library(pcutils)
+pcutils::lib_ps("ggplot2","dplyr","pcutils","reshape2","tibble")
+add_theme()
+source("func.R",echo = F)
+```
+
+# 1Workflow overview
+```{r}
+library(ggplot2)
+library(dplyr)
+
+# 生成正态分布数据
+x <- seq(-4.5, 4.5, length.out = 500)
+y <- dnorm(x)
+positions <- c(-2, -1, 0, 1, 2)
+
+# 创建ggplot对象并绘制正态分布曲线
+p <- ggplot() +
+    geom_area(data = subset(data.frame(x = x, y = y), x > qnorm(1 - 0.05)), aes(x, y), fill = "red2", alpha = 0.5)+
+    geom_area(data = subset(data.frame(x = x, y = y), x < qnorm(1 - 0.05)), aes(x, y), fill = "grey90", alpha = 0.5)+
+    geom_line(data = data.frame(x = x, y = y), aes(x, y), color = "black",linewidth=1.2) +
+    scale_y_continuous(expand = c(0,0,0.02,.02),)+scale_x_continuous(breaks = positions)+
+    coord_fixed(ratio = 10)+
+    labs(x = "Z-score", y = "Probability") +
+    theme_classic(base_size = 15)+
+    geom_segment(aes(x = positions, xend = positions, y = 0, yend = dnorm(positions)),color = "black") +
+    geom_vline(xintercept = qnorm(1 - 0.05), linetype = "dashed", color = "red2",linewidth=1.2)
+
+p=p  +
+  geom_segment(aes(x = 2.2, xend = 2.8, y = 0.02, yend = 0.1),
+               arrow = arrow(length = unit(0.5, "cm")), color = "red2") +
+  geom_text(aes(x = 2.1, y = 0.1, label = "p < 0.05"),size=4.5, vjust = -0.5, hjust = 0, color = "red2")
+
+
+# 显示图形
+p+no_y_theme
+ggsave("figures/1.norm_1.pdf",width = 4.5,height =2.5 )
+```
+
+```{r}
+library(ggplot2)
+
+no_y_theme=theme(axis.text.y = element_blank(),
+                 axis.title.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.line.y = element_blank())
+
+# 生成正态分布数据
+x <- seq(-4.5, 4.5, length.out = 500)
+y <- dnorm(x)
+positions <- c(-2, -1, 0, 1, 2)
+
+# 创建ggplot对象并绘制正态分布曲线
+p <- ggplot() +
+    geom_area(data = filter(data.frame(x = x, y = y), between(x,qnorm(0.025),qnorm(1 - 0.025))), aes(x, y), fill = "grey90", alpha = 0.5)+
+    geom_area(data = subset(data.frame(x = x, y = y), x > qnorm(1 - 0.025)), aes(x, y), fill = "orange", alpha = 0.5)+
+    geom_area(data = subset(data.frame(x = x, y = y), x < qnorm(0.025)), aes(x, y), fill = "seagreen", alpha = 0.5)+
+    geom_line(data = data.frame(x = x, y = y), aes(x, y), color = "black",linewidth=1.2) +
+    scale_y_continuous(expand = c(0,0,0.02,.02),)+scale_x_continuous(breaks = positions)+
+    coord_fixed(ratio = 10)+
+    labs(x = "Z-score", y = "Probability") +
+    theme_classic(base_size = 15)+
+    geom_segment(aes(x = positions, xend = positions, y = 0, yend = dnorm(positions)),color = "black") +
+    geom_vline(xintercept = qnorm(1 - 0.025), linetype = "dashed", color = "orange",linewidth=1.2)+
+    geom_vline(xintercept = qnorm(0.025), linetype = "dashed", color = "seagreen",linewidth=1.2)
+
+p=p  +
+  geom_segment(aes(x = 2.2, xend = 2.8, y = 0.02, yend = 0.1),
+               arrow = arrow(length = unit(0.5, "cm")), color = "orange") +
+  geom_text(aes(x = 2.1, y = 0.11, label = "p < 0.025\nEnriched"),size=4.5, vjust = -0.5, hjust = 0, color = "orange")+
+  geom_segment(aes(x = -2.2, xend = -2.8, y = 0.02, yend = 0.1),
+               arrow = arrow(length = unit(0.5, "cm")), color = "seagreen") +
+  geom_text(aes(x = -5, y = 0.11, label = "p < 0.025\nDepleted"),size=4.5, vjust = -0.5, hjust = 0, color = "seagreen")
+
+
+# 显示图形
+p+no_y_theme
+ggsave("figures/1.norm_2.pdf",width = 4.5,height =2.5 )
+```
+
+network show
+```{r}
+test_id2ko=data.frame(Pathway=sample(paste0("mpa",LETTERS[1:3]),30,replace = T),
+                      KO=sample(paste0("K",letters[1:20]),30,replace = T))
+
+a=twocol_edgelist(test_id2ko)
+plot(a)
+
+pdf("figures/1.net.pdf",width =5,height = 4)
+c_net_plot(a,labels_num = 0, vertex.shape = "circle", 
+           vertex_size_range = list(Pathway = c(15,15), KOs = c(10,10)),
+           edge_legend = FALSE, edge.color = "black",legend_cex = 1.4,edge.width=1.5,
+           group_legend_title = c("",""),main="Pathways")
+dev.off()
+```
+
+
+# 2Plots for wokflow
+example rs
+```{r}
+rs_df=data.frame(Pathway=paste0("P",1:8),ReporterScore=c(0.73,0.66,-2.71,-0.91,3.17,2.97,3.75,-1.46))
+rs_df$Group=ifelse(rs_df$ReporterScore>1.64,"S","None")
+p=ggplot(rs_df, aes(ReporterScore,stats::reorder(Pathway, ReporterScore), fill = Group)) +
+    geom_bar(stat = 'identity', position='dodge')+
+    scale_fill_manual(values=c('P'='orange','N'='seagreen',"S"='red2',"None"="grey"))
+
+p=p+labs(y="",title = NULL)+
+    geom_vline(xintercept = 1.64, linetype =2)+
+    scale_x_continuous(breaks = c(0,1.64,3))+ggpubr::theme_pubr(legend = "none")+
+    theme(plot.title = element_text(color = "red3",face = "bold"))
+
+rs_df2=data.frame(Pathway=paste0("P",1:8),ReporterScore=c(2.18,-3.89,3.8,0.65,-2.35,1.16,0.43,0.73))
+rs_df2$Group=ifelse(rs_df2$ReporterScore>1.64,"P",ifelse(rs_df2$ReporterScore<(-1.64),"N","None"))
+p1=ggplot(rs_df2, aes(ReporterScore,stats::reorder(Pathway, ReporterScore), fill = Group)) +
+    geom_bar(stat = 'identity', position='dodge')+
+    scale_fill_manual(values=c('P'='orange','N'='seagreen',"S"='red2',"None"="grey"))
+p1=p1+labs(y="",title = NULL)+
+    geom_vline(xintercept = 1.64, linetype =2)+
+    geom_vline(xintercept = -1.64, linetype =2)+
+    scale_x_continuous(breaks = c(-1.64,0,1.64))+ggpubr::theme_pubr(legend = "none")+
+    theme(plot.title = element_text(color = "red3",face = "bold"))
+
+library(patchwork)
+p+p1
+ggsave("figures/1.rs.pdf",width = 5.5,height =3.5)
+```
+
+example multi-groups
+```{r}
+# 加载必要的包
+library(ggplot2)
+
+# 创建示例数据
+set.seed(12)
+data <- data.frame(
+  Group = rep(paste0("G",1:3), each = 6),
+  Individual = rep(1:6, times = 3),
+  Value = c(rnorm(6, 10, 1.5), rnorm(6, 8, 2), rnorm(6, 6, 1.5)),
+  Significantly=rep(c(rep("Depleted",4),"None","None"),3)
+)
+
+# 使用 ggplot2 绘制箱型图和线连接个体数据
+ggplot(data, aes(x = factor(Group), y = Value)) +
+  geom_boxplot(aes(color = factor(Group))) +
+  geom_point(aes(color = factor(Group))) +
+  scale_color_manual(values = reporter_color)+
+  ggnewscale::new_scale_color()+
+  geom_line(aes(group = Individual, color = Significantly)) +
+  scale_color_manual(values = c("Depleted"="seagreen","Enriched"="orange","None"="grey","Significant"="red2"))+
+  labs(x=NULL,y=NULL)+ggpubr::theme_pubr(legend = "none",base_size = 14)
+ggsave("figures/1.multi-groups.pdf",width = 4,height = 3)
+
+```
+
+example Longitudinal
+```{r}
+# 加载必要的包
+library(ggplot2)
+
+# 创建示例数据
+set.seed(12)
+data <- rbind(
+data.frame(
+  Group = rep(1:10, each = 4),
+  Individual = rep(1:4, times = 10),
+  Value = lapply(3:12, \(i)rnorm(4,i,1.5))%>%do.call(c,.),
+  Significantly=rep(sample(c("Enriched"),4,replace = T),10)
+),
+data.frame(
+  Group = rep(1:10, each = 2),
+  Individual = rep(5:6, times = 10),
+  Value = lapply(rep(5,10), \(i)rnorm(6,i,1.5))%>%do.call(c,.),
+  Significantly=rep(sample(c("None"),2,replace = T),10)
+))
+
+# 使用 ggplot2 绘制箱型图和线连接个体数据
+ggplot(data, aes(x = (Group), y = Value,group=Individual)) +
+  geom_smooth(aes(color = Significantly),se = F) +
+  geom_point(aes(color = Significantly)) +
+  scale_color_manual(values = c("Depleted"="seagreen","Enriched"="orange","None"="grey","Significant"="red2"))+
+  labs(x=NULL,y=NULL)+ggpubr::theme_pubr(legend = "none",base_size = 14)
+ggsave("figures/1.Longitudinal.pdf",width = 4,height = 3)
+```
+
+```{r}
+data("reporter_score_res")
+pdf("figures/2.plots3.pdf",width = 5.5,height = 4)
+#plot_report(reporter_score_res,rs_threshold = c(-3,3),y_text_size = 12,str_width = 35)+theme(legend.position = "none")
+#plot_KOs_in_pathway(reporter_score_res,map_id = "map00780")+theme(axis.text = element_text(size=12))
+plot_KOs_heatmap(reporter_score_res,map_id = "map00780",only_sig = TRUE,
+                 heatmap_param = list(cutree_rows=2,fontsize_col=8,show_colnames=F))
+dev.off()
+
+View(reporter_score_res$reporter_s)
+pdf("figures/2.plots2.pdf",width = 9,height = 7)
+plot_KOs_network(reporter_score_res,map_id = c("map05230","map04922","map01523"),mark_module = T,
+                 main="",legend_cex=3,vertex_size_range=list(c(30,30),c(15,15)),vertex.label.cex=c(rep(1.5,3),rep(0.8,17)))
+dev.off()
+
+
+pdf("figures/2.plots4.pdf",width = 7,height = 5)
+plot_KO_circle_packing(reporter_score_res,3,show_level_name = c("level1_name"),show_tip_label = T)+
+    coord_fixed()+
+    scale_size(range = c(2.5,6))
+dev.off()
+
+```
+
+
+Simulated data
+
+```{r eval=FALSE}
+# Set KO list and relative abundances
+num_kos <- 5000
+relative_abundances <- rnbinom(num_kos, size = 0.5, mu = 1)
+rpdf1=relative_abundances/sum(relative_abundances)
+rpdf1[rpdf1==0]=min(rpdf1[rpdf1!=0])
+hist(rpdf1)
+
+# Another group relative abundances
+rpdf2=abs(rnorm(num_kos,1,0.5))
+hist(rpdf2)
+rpdf2=rpdf2*rpdf1
+
+# Set number of samples
+num_samples <- 15
+
+# Simulate KO data using multinomial distribution
+KO1<- rmultinom(num_samples, size = 1e4, prob = rpdf1)
+sum(KO1[,1]==0)
+KO2<- rmultinom(num_samples, size = 1e4, prob = rpdf2)
+sum(KO2[,1]==0)
+KO_res=as.data.frame(cbind(KO1,KO2))
+#others
+KO_res=apply(KO_res,2,\(x)x/sum(x))%>%as.data.frame()
+KO_res=rbind(KO_res,rnorm(2*num_samples,2,0.5))
+KO_res=apply(KO_res,2,\(x)x/sum(x))%>%as.data.frame()
+
+colnames(KO_res)=c(paste0("WT",1:num_samples),paste0("OE",1:num_samples))
+load_ko_desc()
+rownames(KO_res)=c(sample(ko_desc$KO_id,num_kos),"others")
+
+pheatmap::pheatmap(KO_res,scale = "row",show_rownames = F)
+```
+
+```{r}
+reporter_score_res$ko_pvalue%>%filter(p.value<0.05)%>%pull(KO_id)->sig_ko
+
+annotation_colors=list("Group"=pcutils::get_cols(nlevels(factor(metadata[,"Group"])),reporter_color))
+names(annotation_colors[["Group"]])=levels(factor(metadata[,"Group"]))
+pdf("figures/s1.heatmap.pdf",width = 7,height = 6)
+pheatmap::pheatmap(KO_abundance[sig_ko,],show_rownames = F,scale = "row",color =colorRampPalette(pcutils:::bluered)(50),
+                                       annotation_colors=annotation_colors,
+                                       annotation_col = metadata["Group"])
+dev.off()
+pheatmap::pheatmap(KO_abundance,show_rownames = F,scale = "row",color = pcutils:::bluered)
+
+hist(KO_abundance[nrow(KO_abundance),]%>%t())
+
+hist(KO_abundance[-nrow(KO_abundance),1])
+
+colSums(KO_abundance==0)%>%hist()
+
+#设置3分组
+a=trans(KO_abundance,method = "standardize",margin = 1)
+pheatmap::pheatmap(a,show_rownames = F,color = pcutils:::bluered)
+
+hclust(dist(t(a)))->h_a
+cutree(h_a,h = 90)->h_m
+table(h_m)
+metadata$Group2=ifelse(h_m==5,"G1",ifelse(h_m==6,"G2","G3"))
+pheatmap::pheatmap(KO_abundance,show_rownames = F,scale = "row",color = pcutils:::bluered,
+                   annotation_col = metadata["Group2"])
+
+#pca
+pctax::b_analyse(KO_abundance,method="pca")->bbb
+
+pdf("figures/s1.pca.pdf",width = 5,height = 4)
+plot(bbb,"Group",metadata,mode = 2,pal = reporter_color)
+dev.off()
+```
+
+# 3Mixed/directed
+```{r}
+RS1=reporter_score(KO_abundance,"Group",metadata,mode="directed")
+RS2=reporter_score(KO_abundance,"Group",metadata,mode="mixed")
+# RS1$reporter_s$p.adjust=p.adjust(RS1$reporter_s$p.value,"BH")
+# RS2$reporter_s$p.adjust=p.adjust(RS2$reporter_s$p.value,"BH")
+
+View(RS1$reporter_s)
+View(RS2$reporter_s)
+RS1_s=filter(RS1$reporter_s,abs(ReporterScore)>1.64,p.adjust<0.05)%>%pull(ID)
+RS2_s=filter(RS2$reporter_s,(ReporterScore)>1.64,p.adjust<0.05)%>%pull(ID)
+
+library(pcutils)
+venn(list(RS1_s,RS2_s))
+venn(list("directed"=RS1_s,"mixed"=RS2_s),"network")
+
+pdf("figures/3.m_d_network.pdf",width = 8,height = 8)
+venn(list("directed"=RS1_s,"mixed"=RS2_s),"network",vertex.label=c("directed","mixed",rep(NA,29)),
+     vertex_size_range=list(c(30,30),c(5,5)),vertex.label.cex=1.3,
+     vertex.color=c("Group: directed"="#EFA4FC"),edge.color=c("directed"="#EFA4FC"),
+     edge.width=2,edge.curved=0.2)
+dev.off()
+
+#rbind(data.frame(p=RS1_s,group="directed"),data.frame(p=RS2_s,group="mixed"))%>%clipr::write_clip()
+
+plot_KOs_in_pathway(RS1,map_id = "map00040")+theme_void()+labs(title = NULL,subtitle = NULL)+theme(legend.position = "none")
+
+pdf("figures/3.m_d_intersect.pdf",width = 4,height = 3)
+lapply(intersect(RS1_s,RS2_s), \(i)plot_KOs_in_pathway(RS1,map_id = i)+theme_void()+labs(title = NULL,subtitle = NULL)+theme(legend.position = "none"))
+dev.off()
+pdf("figures/3.m_d_diff_d.pdf",width = 4,height = 3)
+lapply(setdiff(RS1_s,RS2_s), \(i)plot_KOs_in_pathway(RS1,map_id = i)+theme_void()+labs(title = NULL,subtitle = NULL)+theme(legend.position = "none"))
+dev.off()
+pdf("figures/3.m_d_diff_m.pdf",width = 4,height = 3)
+lapply(setdiff(RS2_s,RS1_s), \(i)plot_KOs_in_pathway(RS1,map_id = i)+theme_void()+labs(title = NULL,subtitle = NULL)+theme(legend.position = "none"))
+dev.off()
+
+pdf("figures/3.m_d_diff_all.pdf",width = 4,height = 3)
+plot_KOs_in_pathway(RS1,map_id = "map00860")+theme_void()+labs(title = NULL,subtitle = NULL)+theme(legend.position = "none")
+plot_KOs_in_pathway(RS1,map_id = "map00130")+theme_void()+labs(title = NULL,subtitle = NULL)+theme(legend.position = "none")
+plot_KOs_in_pathway(RS1,map_id = "map00541")+theme_void()+labs(title = NULL,subtitle = NULL)+theme(legend.position = "none")
+dev.off()
+
+p1=plot_features_distribution(RS1,map_id = c("map00541","map00130","map00860"),text_size = 4,text_position = c(7.5,0.4))+
+    labs(title = NULL)+facet_grid(ID~.)+mytheme+
+    theme(legend.position = "none")
+p2=plot_features_distribution(RS2,map_id = c("map00541","map00130","map00860"),text_size = 4,text_position = c(-6.5,0.4))+
+    labs(title = NULL,y=NULL)+facet_grid(ID~.)+mytheme+
+    theme(legend.position = "none")
+ggsave("figures/3.m_d_distribution.pdf",plot = p1+p2,width = 8,height = 7)
+
+ d_m_res=left_join(select(RS1$reporter_s,ID,ReporterScore),
+          select(RS2$reporter_s,ID,ReporterScore),by="ID",suffix=c("_d","_m"))
+ggplot(d_m_res)+
+    geom_point(mapping = aes(x=ReporterScore_d,y=ReporterScore_m))
+
+pldf=rbind(
+    RS1$reporter_s[setdiff(RS1_s,RS2_s),]%>%transmute(ratio=Significant_K_num/Exist_K_num),
+    #RS1$reporter_s[intersect(RS1_s,RS2_s),]%>%transmute(ratio=Significant_K_num/Exist_K_num),
+    RS1$reporter_s[setdiff(RS2_s,RS1_s),]%>%transmute(ratio=Significant_K_num/Exist_K_num))%>%
+    mutate(Group=c(rep("directed",7),
+                   #rep("both",10),
+                   rep("mixed",12)))
+
+pdf("figures/3.m_d_box.pdf",width = 2.6,height = 3)
+group_box(pldf["ratio"],"Group",pldf,p_value2 = T,mode = 2)+
+    ylim(0,1.1)+
+    scale_fill_manual(values = c("#a6bce3","#fdbf6f"))+
+    labs(y="Significant_ratio")+
+    mytheme+theme(legend.position = "none")
+dev.off()
+```
+
+
+# 3Statistical tests
+```{r}
+methods=c("t.test","wilcox.test","anova","kruskal.test","pearson", "kendall","spearman")
+
+methods_res=lapply(methods,\(i)reporter_score(KO_abundance,"Group",
+                                              metadata,mode="directed",method = i))
+names(methods_res)=methods
+save(methods_res,file = "3.stat_tests.rda")
+
+methods_sig=lapply(methods_res,\(i)filter(i$reporter_s,abs(ReporterScore)>1.64,p.adjust<0.05)%>%pull(ID))
+
+venn(methods_sig[1:4],mode="network")
+venn(methods_sig[5:7],mode="network")
+venn(methods_sig[1:7],mode="network")
+venn(methods_sig[1:7],mode="upset")
+```
+
+mixed mode
+```{r}
+methods=c("t.test","wilcox.test","anova","kruskal.test","pearson", "kendall","spearman")
+
+methods_res_m=lapply(methods,\(i)reporter_score(KO_abundance,"Group",
+                                              metadata,mode="mixed",method = i))
+names(methods_res_m)=methods
+save(methods_res_m,file = "3.stat_tests_m.rda")
+load("3.stat_tests_m.rda")
+
+methods_sig_m=lapply(methods_res_m,\(i)filter(i$reporter_s,(ReporterScore)>1.64,p.adjust<0.05)%>%pull(ID))
+
+aaa=MetaNet::venn_net(methods_sig_m)
+MetaNet::get_v(aaa)$v_class%>%unique()%>%copy_vector()
+get_cols(17,"col3")%>%copy_vector()
+
+colors=setNames(c("#A6BCE3","#E0A4B0","#FBA789","#EFBA73","#5689A2","#E6C00C","#B4D993","#5FA5A1","#C5BAC7","#7EA981",
+                  "#548628","#CD2A1E","#F2520C","#D96E26","#734190","#C7AC39","#B15928"),
+                c("Group: t.test","Group: wilcox.test","Group: anova","Group: kruskal.test","Group: pearson","Group: kendall","Group: spearman","t.test,wilcox.test,anova,kruskal.test,pearson,kendall,spearman","t.test,anova,pearson","t.test,kendall","t.test,wilcox.test,anova,pearson","t.test,wilcox.test,kruskal.test,pearson,kendall,spearman","wilcox.test,kruskal.test,kendall,spearman","wilcox.test,kendall","wilcox.test,anova,kruskal.test,pearson,kendall,spearman","wilcox.test,kruskal.test,kendall","kendall"))
+
+venn(methods_sig_m[1:7],mode="network",vertex.color=colors[1:7],edge.color=unname(colors[1:7]))
+coors=MetaNet::c_net_lay(aaa,igraph::with_fr(niter=199))
+write.csv(coors,file = "tmp.csv")
+coors1=read.csv(file = "methods_venn.csv")
+
+# angle <- pi/4
+# # 计算旋转矩阵
+# rotation_matrix <- matrix(c(cos(angle), -sin(angle), sin(angle), cos(angle)), nrow = 2)
+# # 执行逆时针旋转
+# coors1[,c("X","Y")]  <- as.matrix(coors1[,c("X","Y")]) %*% rotation_matrix
+
+pdf("figures/3.methods_venn.pdf",width = 10,height = 8)
+venn(methods_sig_m[1:7],mode="network",vertex.color=get_cols(17,"col3"),edge.color=get_cols(17,"col3"),
+     coors=coors1,
+     vertex.label=c(methods,rep(NA,27)),
+     vertex_size_range=list(c(30,30),c(5,5)),vertex.label.cex=1.3)
+dev.off()
+
+venn(methods_sig_m[1:7],mode="upset")
+
+```
+
+```{r}
+id="GSE65144"
+methods_res_m=readRDS(paste0("refer data/GEO_data/",id,"_methods.RDS"))
+
+methods_sig_m=lapply(methods_res_m,\(i)filter(i$reporter_s,(ReporterScore)>1.64,p.adjust<0.05)%>%pull(ID))
+#if(id=="GSE41011")methods_sig_m=lapply(methods_res_m,\(i)filter(i$reporter_s,(ReporterScore)>1)%>%pull(ID))
+
+library(MetaNet)
+tmp_net=MetaNet::venn_net(methods_sig_m[1:7])
+c_net_save(tmp_net,"tmp_net","graphml")
+plot(tmp_net)
+gephi=input_gephi("tmp_net2.graphml")
+gephi$coors[,2]=gephi$coors[,2]/50
+gephi$coors[,3]=gephi$coors[,3]/40
+
+pdf("figures/3.methods_venn2.pdf",width = 8,height = 8)
+plot(tmp_net,coors=gephi$coors,vertex_size_range = list(Group = c(20,20), elements = c(4,4)),
+     rescale=F,vertex.label=c(c("t.test","wilcox\ntest","anova","kruskal\ntest","pearson", "kendall","spearman"),rep(NA,119)),vertex.color=colors[1:7],edge.color=unname(colors[1:7]),vertex.frame.width=0.5)
+dev.off()
+```
+
+```{r}
+load("refer data/GEO_data/add_analysis.rda")
+lapply(all_sim_mat, as.matrix)->test
+array_3d <- array(unlist(test), dim = c(7, 7, 6),dimnames = list(names(methods_sig_m),names(methods_sig_m),geo_list$dataset))
+apply(array_3d, c(1,2), mean)->all_sim_mat_mean
+
+pdf("figures/3.methods_heatmap.pdf",height = 5)
+pheatmap::pheatmap(all_sim_mat_mean,cutree_cols = 2,cutree_rows = 2,annotation_row = anno,annotation_col = anno,
+                   color = colorRampPalette(RColorBrewer::brewer.pal(5,name = "Reds"))(80),display_numbers=T,
+                   number_color = "black",annotation_colors = list("type"=c(parametric="#A6BCE3",`non-parametric`="#548628")))
+dev.off()
+```
+
+
+multi-groups
+```{r}
+methods=c("anova","kruskal.test","pearson", "kendall","spearman")
+
+methods_res_multi=lapply(methods,\(i)reporter_score(KO_abundance,"Group2",
+                                              metadata,mode="mixed",method = i))
+names(methods_res_multi)=methods
+
+save(methods_res_multi,file = "3.stat_tests_multi.rda")
+load("3.stat_tests_multi.rda")
+
+#pathway diff
+methods_sig_multi=lapply(methods_res_multi,\(i)filter(i$reporter_s,(ReporterScore)>1)%>%pull(ID))
+
+venn(methods_sig_multi,mode="network")
+venn(methods_sig_multi,mode="upset")
+
+pdf("figures/3.methods_venn_multi.pdf",width = 9)
+venn(methods_sig_multi[c(1,3)],mode="network",coors=igraph::with_kk(),main="Parametric methods")
+venn(methods_sig_multi[c(2,4,5)],mode="network",coors=igraph::with_kk(),main="Non-parametric methods")
+dev.off()
+
+lapply(intersect(methods_sig_multi$pearson,methods_sig_multi$anova), \(i)plot_KOs_in_pathway(methods_res_multi$anova,map_id = i))
+lapply(setdiff(methods_sig_multi$pearson,methods_sig_multi$anova), \(i)plot_KOs_in_pathway(methods_res_multi$anova,map_id = i))
+lapply(setdiff(methods_sig_multi$anova,methods_sig_multi$pearson), \(i)plot_KOs_in_pathway(methods_res_multi$anova,map_id = i))
+
+View(methods_res_multi$pearson$ko_pvalue)
+View(methods_res_multi$anova$ko_pvalue)
+
+similar_each(methods_sig_multi)%>%pheatmap::pheatmap(cutree_cols = 2,cutree_rows = 2,annotation_row = anno2,annotation_col = anno,
+                   color = colorRampPalette(RColorBrewer::brewer.pal(5,name = "Reds"))(80),display_numbers=T,
+                   number_color = "black",annotation_colors = list("type"=c(parametric="#A6BCE3",`non-parametric`="#548628")))
+
+```
+
+
+c_means
+```{r}
+ko_g3=hebing(KO_abundance,metadata$Group2)
+
+otu_group=ko_g3[methods_res_multi$anova$ko_stat%>%top_n(2000,-p.value)%>%pull(KO_id),]
+#pctax::cm_test_k(otu_group,filter_var = 0.25)
+anova_s=pctax::c_means(otu_group,k=4,filter_var = 0.25)
+plot(anova_s,filter_membership=0.8)
+
+otu_group=ko_g3[methods_res_multi$pearson$ko_stat%>%top_n(500,-p.value)%>%pull(KO_id),]
+#pctax::cm_test_k(otu_group,filter_var = 0.25)
+pearson_s=pctax::c_means(otu_group,k=2,filter_var = 0.25)
+plot(pearson_s,filter_membership=0.8)
+
+pldat=rbind(data.frame(anova_s$cm_data,Method="anova"),data.frame(pearson_s$cm_data,Method="pearson"))
+pldat2=filter(pldat,Membership>0.7)
+cm_group.melt = reshape2::melt(pldat2, id.vars = c("Cluster", 
+    "Membership", "Name", "Weight","Method"), variable.name = "Date")
+cm_group.melt$Cluster = factor(cm_group.melt$Cluster)
+
+add_theme()
+CPCOLS <- c("#1f78b4", "#FF8C00", "#006400", "#FF6A6A")
+
+pdf("figures/3.methods_c_means.pdf",height = 5,width = 6.5)
+ggplot(data = cm_group.melt, aes(x = Date, y = value, 
+        group = Name, color = Cluster, size = Weight, alpha = Membership)) + 
+        geom_line(size = 0.8) + facet_grid(Method~.)+
+    mytheme+labs(x="",y="")+scale_color_manual(values= CPCOLS)+
+    scale_x_discrete(expand = c(0, 0)) + theme(plot.margin = unit(c(1, 2, 1, 1), "lines"))
+dev.off()
+
+
+set.seed(123)
+otu_group=ko_g3[methods_res_multi$kruskal.test$ko_stat%>%top_n(1000,-p.value)%>%pull(KO_id),]
+#pctax::cm_test_k(otu_group,filter_var = 0.25)
+kruskal_s=pctax::c_means(otu_group,k=3,filter_var = 0.25)
+plot(kruskal_s,filter_membership=0.8)
+
+otu_group=ko_g3[methods_res_multi$kendall$ko_stat%>%top_n(300,-p.value)%>%pull(KO_id),]
+#pctax::cm_test_k(otu_group,filter_var = 0.25)
+kendall_s=pctax::c_means(otu_group,k=2,filter_var = 0.25)
+plot(kendall_s,filter_membership=0.8)
+
+otu_group=ko_g3[methods_res_multi$spearman$ko_stat%>%top_n(300,-p.value)%>%pull(KO_id),]
+#pctax::cm_test_k(otu_group,filter_var = 0.25)
+spearman_s=pctax::c_means(otu_group,k=2,filter_var = 0.25)
+plot(spearman_s,filter_membership=0.8)
+
+pldat=rbind(data.frame(kruskal_s$cm_data,Method="kruskal.test"),
+            data.frame(kendall_s$cm_data,Method="kendall"),
+            data.frame(spearman_s$cm_data,Method="spearman"))
+pldat2=filter(pldat,Membership>0.8)
+cm_group.melt = reshape2::melt(pldat2, id.vars = c("Cluster", 
+    "Membership", "Name", "Weight","Method"), variable.name = "Date")
+cm_group.melt$Cluster = factor(cm_group.melt$Cluster)
+cm_group.melt$Method=factor(cm_group.melt$Method,levels = c("kruskal.test","kendall","spearman"))
+
+add_theme()
+CPCOLS <- c("#1f78b4", "#FF8C00", "#006400", "#FF6A6A")
+
+pdf("figures/3.methods_c_means2.pdf",height = 4,width = 12)
+ggplot(data = cm_group.melt, aes(x = Date, y = value, 
+        group = Name, color = Cluster, size = Weight, alpha = Membership)) + 
+        geom_line(size = 0.8) + facet_grid(.~Method)+
+    mytheme+labs(x="",y="")+scale_color_manual(values= CPCOLS)+
+    scale_x_discrete(expand = c(0, 0)) + theme(plot.margin = unit(c(1, 2, 1, 1), "lines"))
+dev.off()
+```
+
+
+```{r}
+#GSEA
+id="GSE65144"
+geo_tmp=readRDS(paste0("refer data/GEO_data/",id,".RDS"))
+{meta_tmp=geo_tmp$meta%>%select(`tissue type:ch1`)%>%rename("group"=1)}
+
+rs_tmp=reporter_score(geo_tmp$GSE_expr,group = "group",metadata = meta_tmp,mode="directed",
+                      method = "t.test",feature = "gene",type = "hsa")
+View(rs_tmp$ko_stat)
+View(rs_tmp$reporter_s)
+
+#使用logFC排序
+gsea_tmp=KO_gsea(rs_tmp,padj_threshold = 1)
+View(gsea_tmp@result)
+
+clusterProfiler::gseaplot(gsea_tmp2,c("hsa04145"))
+
+#使用Z_score排序,会与GRSA更相似，直接用来做multi-GSEA
+gsea_tmp2=KO_gsea(rs_tmp,padj_threshold = 1,weight = "Z_score")
+View(gsea_tmp2@result)
+
+venn(list(rs_tmp$reporter_s%>%filter(p.adjust<0.02)%>%pull(ID),
+          gsea_tmp@result%>%filter(p.adjust<0.05)%>%pull(ID),
+          gsea_tmp2@result%>%filter(p.adjust<0.05)%>%pull(ID)))
+
+
+#看起来不要筛选阈值GSEA的结果会更多一些，GSEA本身不需要筛选gene列表
+
+set.seed(1234)
+gsea_res_ls=list()
+for (padj in c(0.05,0.1,0.4,0.7,1)){
+    gsea_res_ls[[as.character(padj)]]=KO_gsea(rs_tmp,padj_threshold = padj)
+}
+lapply(gsea_res_ls, \(i)i@result%>%filter(p.adjust<0.05)%>%pull(ID))%>%venn(mode="flower")
+sapply(gsea_res_ls, \(i)i@result%>%filter(p.adjust<0.05)%>%nrow)%>%barplot()
+
+```
+
+
+# 4Comparison
+```{r}
+data("KO_abundance_test")
+reporter_score_res2=reporter_score(KO_abundance,"Group",metadata,mode="mixed")
+View(reporter_score_res2$reporter_s)
+#reporter_score
+filter(reporter_score_res2$reporter_s,(ReporterScore)>1.64,p.adjust<0.05)%>%pull(ID)->RS
+#fisher
+ko_pvalue=reporter_score_res2
+fisher_res=KO_fisher(ko_pvalue)
+filter(fisher_res,p.adjust<0.05)%>%pull(ID)->Fisher
+#enricher
+enrich_res=KO_enrich(ko_pvalue)
+filter(enrich_res,p.adjust<0.05)%>%pull(ID)->clusterProfiler
+#GESA
+set.seed(1234)
+gsea_res=KO_gsea(ko_pvalue$ko_stat,weight = "Z_score")
+filter(gsea_res@result,p.adjust<0.05)%>%pull(ID)->GSEA
+
+venn_res=list(RSA=RS,Fisher=Fisher,CP=clusterProfiler,GSEA=GSEA)
+
+venn(venn_res)
+venn(venn_res,"network",vertex.label.cex=c(rep(1,4),rep(0.5,22)))
+pdf("figures/4.others_venn_net.pdf",width = 8,height = 8)
+venn(venn_res,"network",edge.width=1,vertex_size_range=list(c(22,22),c(12,12)),
+     vertex.label.cex=c(rep(1.1,4),rep(0.5,23)),main="",vertex.frame.width=0.5)
+dev.off()
+
+setdiff(venn_res[[1]],Reduce(union,venn_res[2:4]))
+
+plot_KOs_in_pathway(reporter_score_res2,"map03010")
+plot_KOs_in_pathway(reporter_score_res2,"map01100")
+plot_KOs_in_pathway(reporter_score_res2,"map00785")
+
+plot_KOs_in_pathway(reporter_score_res2,"map00051")
+
+get_KOs("map00051",ko_stat = reporter_score_res2$ko_stat)
+
+#当一条通路有一些p值为1的非常不显著的东西存在时，Z-score为-8左右，非常小，也会掩盖其他的p值
+
+```
+
+# add comparison
+
+找一些GEO或ATGC的表，最好是两组实验设计，然后用一定的指标衡量（simposon指数应该可以，两者交集除以两者小值），mixed/directed，statistical test，other enrichment之间的相似程度。
+应该可以把结果画成热图展示，比如参数非参数检验的差异，还有RSA能够覆盖其他富集方法之类的预期结论。
+
+```{r load_geo}
+load_all("../../pctax/")
+
+#ttt=pre_GEO(i,"refer data/GEO_data/",file = paste0("refer data/GEO_data/",i,"_series_matrix.txt.gz"))
+
+id="GSE4451"
+#debug(pre_GEO)
+geo_tmp=pre_GEO(id,"refer data/GEO_data/tabs/")
+
+source("func.R",echo = F)
+
+{
+    geo_tmp=load_geo(id)
+    if(any(geo_tmp$GSE_expr<0))b_analyse(geo_tmp$GSE_expr,method = "pca",norm = F)->b_res
+    else b_analyse(geo_tmp$GSE_expr,method = "pca",norm = T)->b_res
+    plot(b_res,"group",geo_tmp$meta,mode = 2)[[1]]+labs(title = id)
+}
+
+
+```
+
+```{r eval=FALSE}
+tmp_sim_mat=similar_each(methods_sig_m)
+pheatmap::pheatmap(tmp_sim_mat,cutree_cols = 2,cutree_rows = 2)
+
+all_sim_mat=list()
+for (i in geo_list$dataset) {
+    methods_res_m=readRDS(paste0("refer data/GEO_data/",i,"_methods.RDS"))
+    
+    if(i=="GSE41011")methods_sig_m=lapply(methods_res_m,\(i)filter(i$reporter_s,(ReporterScore)>1)%>%pull(ID))
+    else methods_sig_m=lapply(methods_res_m,\(i)filter(i$reporter_s,(ReporterScore)>1.64,p.adjust<0.05)%>%pull(ID))
+    
+    all_sim_mat[[i]]=data.frame(similar_each(methods_sig_m))
+}
+
+anno=data.frame(row.names = names(all_sim_mat[[i]]),
+                type=c("parametric","non-parametric","parametric","non-parametric","parametric","non-parametric","non-parametric"))
+anno2=data.frame(row.names = names(all_sim_mat[[i]]),
+                type2=c("differential","differential","differential","differential","correlation","correlation","correlation"))
+
+pheatmap::pheatmap(all_sim_mat$GSE65144,cutree_cols = 2,cutree_rows = 2,annotation_row = anno2,annotation_col = anno)
+
+save(all_set_df,all_sim_mat,file = "refer data/GEO_data/add_analysis.rda")
+load("refer data/GEO_data/add_analysis.rda")
+```
+
+## 10.24 add
+### human_geo
+```{r warning=F}
+#3-1 t.test
+
+#比较准确性,
+for (i in geo_list2$GEO_id) {
+    print(i)
+    geo_tmp=load_geo(i)
+    test_tests3(geo_tmp$GSE_expr,"group",geo_tmp$meta,
+                name=paste0("refer data/GEO_data/comparison3-2/",i),method = "t.test")
+}
+
+all_done=list.files("refer data/GEO_data/comparison3-2/",pattern = ".*_comparison3.RDS")%>%gsub("_comparison3.RDS","",.)
+venn(list(geo_list2$GEO_id,all_done))
+setdiff(geo_list2$GEO_id,all_done)%>%copy_vector()
+
+```
+
+```{r}
+#https://stats.stackexchange.com/questions/288081/use-fishers-exact-test-or-a-hypergeometric-test
+
+all_rank_set=list()
+
+for (i in geo_list2$GEO_id) {
+    comparison_res_m=readRDS(paste0("refer data/GEO_data/comparison3-2/",i,"_comparison3.RDS"))
+    
+    target_id=geo_list2[geo_list2$GEO_id==i,"pathID"]
+    comparison_res_m$RS_d=arrange(comparison_res_m$RS_d,-abs(ReporterScore))
+    rank1=which(comparison_res_m$RS_d$ID==target_id)
+    p.adjust1=comparison_res_m$RS_d[rank1,"p.adjust"]
+    p.value1=comparison_res_m$RS_d[rank1,"p.value"]
+    
+    rank2=which(comparison_res_m$fisher_res$ID==target_id)
+    p.adjust2=comparison_res_m$fisher_res[rank2,"p.adjust"]
+    p.value2=comparison_res_m$fisher_res[rank2,"p.value"]
+    if(length(rank2)==0){rank2=343;p.adjust2=1;p.value2=1}
+    
+    rank3=which(comparison_res_m$enrich_res$ID==target_id)
+    p.adjust3=comparison_res_m$enrich_res[rank3,"p.adjust"]
+    p.value3=comparison_res_m$enrich_res[rank3,"p.value"]
+    if(length(rank3)==0){rank3=343;p.adjust3=1;p.value3=1}
+    
+    rank4=which(comparison_res_m$gsea_res@result$ID==target_id)
+    p.adjust4=comparison_res_m$gsea_res@result[rank4,"p.adjust"]
+    p.value4=comparison_res_m$gsea_res@result[rank4,"pvalue"]
+    
+    all_rank_set[[i]]=data.frame(geo=i,method=c("GRSA","Fisher","CP","GSEA"),
+                                 Rank=c(rank1,rank2,rank3,rank4),
+                                 P.adjust=c(p.adjust1,p.adjust2,p.adjust3,p.adjust4),
+                                 p.value=c(p.value1,p.value2,p.value3,p.value4))
+}
+all_rank_set_df=do.call(rbind,all_rank_set)
+group_box(all_rank_set_df[,3:5],"method",all_rank_set_df)
+
+all_rank_set_df=filter(all_rank_set_df)%>%mutate(method=factor(method,levels=c("Fisher","CP","GSEA","GRSA")))
+
+method_col=c("#a6bce3", "#fb9a99","#78c679","#FF8C00")
+
+p=group_box(all_rank_set_df%>%.[,c(3,4)],"method",all_rank_set_df)+
+    mytheme+scale_color_manual(values = method_col)+theme(legend.position = "none")
+
+tmp_text=all_rank_set_df%>%group_by(method)%>%summarise(Rank=round(median(Rank),0),
+                                                        P.adjust=round(median(P.adjust),4))%>%
+    melt(id.vars = "method")
+colnames(tmp_text)=c("group","indexes","value")
+
+p+geom_text(data = tmp_text,aes(label=value),col="black")
+    
+ggsave("figures/4.others_human.pdf",width = 6,height = 3)
+```
+
+```{r}
+two_set=\(a,b){
+    return(c("GRSA"=length(setdiff(a,b)),"Overlap"=length(intersect(a,b)),"Other_tools"=length(setdiff(b,a))))
+}
+#stackplot(as.data.frame(tmp_set),relative = T)
+
+all_set=list()
+
+for (i in geo_list2$GEO_id) {
+    comparison_res_m=readRDS(paste0("refer data/GEO_data/comparison3-2/",i,"_comparison3.RDS"))
+    enrich_sig_m=get_sig_from_all(comparison_res_m)
+    tmp_set=lapply(enrich_sig_m[2:4], \(i)two_set(enrich_sig_m$GRSA,i))%>%do.call(cbind,.)%>%
+        melt(.,varnames = c("type","method"),value.name = "number")
+    all_set[[i]]=data.frame("GEO_id"=i,tmp_set)
+}
+all_set_df=do.call(rbind,all_set)
+
+all_set_df$GEO_id=factor(all_set_df$GEO_id,levels = geo_list2$GEO_id)
+
+ggplot(all_set_df,aes(x=GEO_id,y=number,fill=type))+
+    geom_col(position = position_fill())+facet_grid(method~.)+mytheme+
+    scale_fill_manual(values = c("#FF8C00","#78c679","#1f78b4"),name="")+
+    theme(axis.text.x = element_text(angle = 45,vjust = 1,hjust = 1),legend.position = "top")+
+    scale_y_continuous(breaks = seq(0,1,0.3))+labs(y="Enriched pathway proportion",x="Dataset")
+ggsave("figures/4.others_barplot2-2.pdf",width = 8,height = 5)
+
+ggplot(all_set_df,aes(x=GEO_id,y=number,fill=type))+
+    geom_col()+facet_grid(method~.)+mytheme+
+    scale_fill_manual(values = c("#FF8C00","#78c679","#1f78b4"))+
+    theme(axis.text.x = element_text(angle = 45,vjust = 1,hjust = 1),legend.position = "top")+
+    scale_y_continuous(breaks = seq(0,200,45))+labs(x="Dataset")
+ggsave("figures/4.others_barplot2.pdf",width = 10,height = 6)
+```
+
+```{r}
+#only GRSA could identify significantly enriched pathways in the GSE41011 data set
+
+GRSA_GSEA=data.frame()
+for (i in geo_list2$GEO_id) {
+    comparison_res_m=readRDS(paste0("refer data/GEO_data/comparison3-2/",i,"_comparison3.RDS"))
+
+    enrich_sig_m=get_sig_from_all(comparison_res_m)
+    GRSA_GSEA=rbind(GRSA_GSEA,data.frame(GEO_id=i,GRSA_specific=paste(setdiff(enrich_sig_m$GRSA,enrich_sig_m$GSEA),collapse = ", ")))
+}
+save(GRSA_GSEA,file = "refer data/GEO_data/GRSA_GSEA.rda")
+
+load("refer data/GEO_data/GRSA_GSEA.rda")
+GRSA_GSEA2=left_join(explode(GRSA_GSEA,2,", "),hsa_kegg_pathway$org_pathway,by=c("GRSA_specific"="pathID"))
+filter(GRSA_GSEA2,GEO_id=="GSE41011")%>%pull(GRSA_specific)
+filter(GRSA_GSEA2,GEO_id=="GSE19587")
+
+pdf("figures/4.others_reporter.pdf",height = 10,width = 10)
+for (i in geo_list2$GEO_id) {
+    comparison_res_m=readRDS(paste0("refer data/GEO_data/comparison3-2/",i,"_comparison3.RDS"))
+    comparison_res_m$RS_d=modify_description(comparison_res_m$RS_d)
+    p=plot_report(comparison_res_m$RS_d%>%filter(ID%in%(filter(GRSA_GSEA2,GEO_id==i)%>%pull(GRSA_specific))),2.5,show_ID = T)
+    print(p+labs(title = i))
+}
+dev.off()
+
+
+comparison_res_m=readRDS(paste0("refer data/GEO_data/comparison3-2/","GSE6344","_comparison3.RDS"))
+View(comparison_res_m$RS_d)
+comparison_res_m$RS_d=modify_description(comparison_res_m$RS_d)
+
+#plot_report(comparison_res_m$RS_d,4)
+
+p1=plot_report(comparison_res_m$RS_d%>%filter(ID%in%(filter(GRSA_GSEA2,GEO_id=="GSE6344")%>%pull(GRSA_specific))),2.5,show_ID = T)+
+    theme(legend.position = c(-1.1,0.8))
+p1
+comparison_res_m2=readRDS(paste0("refer data/GEO_data/comparison3-2/","GSE7305","_comparison3.RDS"))
+#View(comparison_res_m$RS_d)
+comparison_res_m2$RS_d=modify_description(comparison_res_m2$RS_d)
+
+p2=plot_report(comparison_res_m2$RS_d%>%filter(ID%in%(filter(GRSA_GSEA2,GEO_id=="GSE7305")%>%pull(GRSA_specific))),2.5,show_ID = T)+
+    theme(legend.position = c(-1,0.8))
+p2
+cowplot::plot_grid(p1,p2,align = "v",ncol = 1,labels = "AUTO",label_size = 24)
+ggsave("figures/4.reporter2.pdf",width = 10,height = 10)
+cowplot::plot_grid(p1,p2,align = "v",ncol = 1,labels = "auto",label_size = 24)
+ggsave("figures/4.reporter2a.pdf",width = 10,height = 10)
+
+geo_res=readRDS("refer data/GEO_data/GSE141512_methods_res_d.RDS")
+View(geo_res$ko_stat)
+plot_KOs_in_pathway(geo_res,"hsa04064")
+```
+
+### mouse_geo
+```{r}
+#comparison4,用wilcox
+#comparison5，用 t.test
+#comparison5-1，更新了p-value计算，分子分母加一
+
+#比较TP,TN
+if(F){
+    #手动运行
+    for (i in geo_list3$GEO[1:9]) {
+        print(i)
+        geo_tmp=load_geo(i)
+        test_tests4(geo_tmp$GSE_expr,"group",geo_tmp$meta,name=paste0("refer data/GEO_data/comparison5-1/",i),method = "t.test",p.adjust = F)
+    }
+}
+
+all_tp_set=list()
+
+for (i in 1:9) {
+    id=geo_list3$GEO[i]
+    comparison_res_m=readRDS(paste0("refer data/GEO_data/comparison5-1/",id,"_comparison5.RDS"))
+    target_path=filter(pos_res,mutate==geo_list3$KO_gene[i])%>%pull(pathway_id)
+    
+    all_sig=get_sig_from_all2(comparison_res_m)
+    all_tp_set[[i]]=sapply(all_sig, \(i)c(TP=intersect(i,target_path)%>%length,
+                                   FP=setdiff(i,target_path)%>%length,
+                                   FN=setdiff(target_path,i)%>%length))%>%as.data.frame%>%t2()
+    all_tp_set[[i]]=data.frame(GEO=id,all_tp_set[[i]]%>%rownames_to_column("method"))
+}
+all_tp_set_df=do.call(rbind,all_tp_set)
+
+all_tp_set_df=mutate(all_tp_set_df,TN=339-TP-FP-FN,Accuracy=(TP + TN) /(TP + FP + TN + FN),
+                     Sensitivity = TP/(TP + FN),Specificity = TN/(TN + FP))
+
+all_tp_set_df=filter(all_tp_set_df,method!="GSA")%>%mutate(method=factor(method,levels=c("Fisher","CP","GSEA","GRSA")))
+
+p2=group_box(all_tp_set_df[,8:9],"method",all_tp_set_df)+ylim(0,1)+
+    mytheme+scale_color_manual(values = method_col)+theme(legend.position = "none")+theme(legend.position = "none")
+tmp_text2=all_tp_set_df%>%group_by(method)%>%summarise(Sensitivity=round(median(Sensitivity),3),
+                                                        Specificity=round(median(Specificity),3))%>%
+    melt(id.vars = "method")
+colnames(tmp_text2)=c("group","indexes","value")
+
+p2+geom_text(data = tmp_text2,aes(label=value),col="black")
+    
+ggsave("figures/4.others_mouse.pdf",width = 6,height = 3)
+```
+
+
+# 4Sum abandance (discarded)
+```{r}
+KO_pathway=up_level_KO(KO_abundance,"pathway")
+
+# da_res=pctax::diff_da(KO_pathway,metadata["Group"],method = "wilcox.test")
+# da_res%>%filter(p<0.05)
+
+methods=c("t.test","wilcox.test","anova","kruskal.test","pearson", "kendall","spearman")
+
+methods_res_da=lapply(methods,\(i)ko.test(KO_pathway,"Group",metadata,method = i))
+names(methods_res_da)=methods
+save(methods_res_da,file = "4.sum_abundance_tests.rda")
+
+load("3.stat_tests.rda")
+load("4.sum_abundance_tests.rda")
+methods_sig_da=lapply(methods_res_da, \(i)filter(i,p.adjust<0.05)%>%pull(KO_id))
+venn(methods_sig_da,"network")
+
+methods_sig=lapply(methods_res,\(i)filter(i$reporter_s,abs(ReporterScore)>1.64,p.adjust<0.05)%>%pull(ID))
+
+venns=lapply(methods, \(i)venn(list(DAP=methods_sig_da[[i]],GRSA=methods_sig[[i]]),
+                               text_size = 3.5,set_name_size = 4)+annotate("text",-1.2,1.7,label=i,size=6))
+venns_p=cowplot::plot_grid(plotlist = venns[c(1,3,2,5)])
+ggsave("figures/4.sum_abundance_venn.pdf",venns_p,width = 7,height = 6)
+
+setdiff(methods_sig$t.test,methods_sig_da$t.test)
+
+setdiff(methods_sig_da$t.test,methods_sig$t.test)
+
+plot_KOs_in_pathway(methods_res$t.test,"map00030")
+
+pdf("figures/4.rs_da_intersect.pdf",width = 4.5,height = 4)
+lapply(intersect(methods_sig$wilcox.test,methods_sig_da$wilcox.test), 
+       \(i)plot_KOs_in_pathway(methods_res$wilcox.test,map_id = i)+labs(title = i))
+dev.off()
+pdf("figures/4.rs_da_diff_rs.pdf",width = 4.5,height = 4)
+lapply(setdiff(methods_sig$wilcox.test,methods_sig_da$wilcox.test), 
+       \(i)plot_KOs_in_pathway(methods_res$wilcox.test,map_id = i)+labs(title = i))
+dev.off()
+pdf("figures/4.rs_da_diff_da.pdf",width = 4.5,height = 4)
+lapply(setdiff(methods_sig_da$wilcox.test,methods_sig$wilcox.test), 
+       \(i)plot_KOs_in_pathway(methods_res$wilcox.test,map_id = i)+labs(title = i))
+dev.off()
+
+pdf("figures/4.rs_da_diff_da1.pdf",width = 12,height = 4)
+rs_da_diff=list(plot_KOs_in_pathway(methods_res$wilcox.test,map_id = "map03430")+labs(title = "map03430",y=NULL),
+                plot_KOs_in_pathway(methods_res$wilcox.test,map_id = "map00785")+labs(title = "map00785",y=NULL),
+                plot_KOs_in_pathway(methods_res$wilcox.test,map_id = "map00627")+labs(title = "map00627",y=NULL))
+cowplot::plot_grid(plotlist = rs_da_diff,nrow = 1)
+
+View(methods_res_da$wilcox.test%>%filter(KO_id%in%c("map03430","map00785","map00627")))
+
+View()
+
+View(get_KOs("map00627",ko_stat = methods_res$wilcox.test$ko_stat))
+```
+
+## permutation
+```{r, message=FALSE,warning=FALSE}
+data("KO_abundance_test")
+
+all_simu_data=list(methods=list(),mode=list(),others=list())
+n_simu=3
+
+for (pi in seq_len(n_simu)) {
+cat("start: ",pi,"\n")
+
+ko_df_p=KO_abundance[-4535,]
+rownames(ko_df_p)=sample(rownames(ko_df_p),nrow(ko_df_p))
+
+
+#=======methods======
+methods=c("t.test","wilcox.test","anova","kruskal.test","pearson", "kendall","spearman")
+
+methods_res=lapply(methods,\(i)reporter_score(ko_df_p,"Group",metadata,mode="mixed",method = i))
+names(methods_res)=methods
+
+methods_sig=lapply(methods_res,\(i)filter(i$reporter_s,abs(ReporterScore)>1.64,p.value<0.05)%>%pull(ID))
+
+all_simu_data$methods[[pi]]=methods_sig
+
+#========mode========
+RS1=reporter_score(ko_df_p,"Group",metadata,mode="directed")
+RS2=methods_res$wilcox.test
+
+RS1_s=filter(RS1$reporter_s,abs(ReporterScore)>1.64,p.value<0.05)%>%pull(ID)
+RS2_s=filter(RS2$reporter_s,(ReporterScore)>1.64,p.value<0.05)%>%pull(ID)
+
+pldf=rbind(
+    RS1$reporter_s[setdiff(RS1_s,RS2_s),]%>%transmute(ratio=Significant_K_num/Exist_K_num),
+    RS1$reporter_s[intersect(RS1_s,RS2_s),]%>%transmute(ratio=Significant_K_num/Exist_K_num),
+    RS1$reporter_s[setdiff(RS2_s,RS1_s),]%>%transmute(ratio=Significant_K_num/Exist_K_num))%>%
+    mutate(Group=c(rep("directed",length(setdiff(RS1_s,RS2_s))),
+                   rep("both",length(intersect(RS1_s,RS2_s))),
+                   rep("mixed",length(setdiff(RS2_s,RS1_s)))))
+
+all_simu_data$mode[[pi]]=pldf
+
+# venn(list(RS1_s,RS2_s))
+# venn(list("directed"=RS1_s,"mixed"=RS2_s),"network")
+
+#========others========
+reporter_score_res2=RS2
+#View(reporter_score_res2$reporter_s)
+#reporter_score
+filter(reporter_score_res2$reporter_s,(ReporterScore)>1.64,p.adjust<0.05)%>%pull(ID)->RS
+#fisher
+ko_pvalue=reporter_score_res2$ko_pvalue
+fisher_res=KO_fisher(ko_pvalue)
+filter(fisher_res,p.adjust<0.05)%>%pull(ID)->Fisher
+#enricher
+enrich_res=KO_enrich(ko_pvalue)
+filter(enrich_res,p.adjust<0.05)%>%pull(ID)->clusterProfiler
+#GESA
+set.seed(1234)
+gsea_res=KO_gsea(ko_pvalue)
+filter(gsea_res@result,p.adjust<0.05)%>%pull(ID)->GSEA
+
+venn_res=list(RSA=RS,Fisher=Fisher,CP=clusterProfiler,GSEA=GSEA)
+
+all_simu_data$others[[pi]]=venn_res
+
+cat("done: ",pi,"\n")
+# venn(venn_res)
+# venn(venn_res,mode="network")
+}
+
+
+lapply(all_simu_data$methods,\(i)venn(i,mode="network"))
+
+lapply(all_simu_data$mode,\(i){
+    i=filter(i,Group!="both")
+    group_box(i["ratio"],"Group",i,p_value2 = T,mode = 2)+
+    ylim(0,1.1)+
+    scale_fill_manual(values = c("#a6bce3","#fdbf6f"))+
+    labs(y="Significant_ratio")+
+    theme(legend.position = "none")
+})
+
+lapply(all_simu_data$others,\(i)venn(i))
+```
+
+
+# 5Skin microbiome
+
+Characterization of the human skin resistome and identification of two microbiota cutotypes
+https://microbiomejournal.biomedcentral.com/articles/10.1186/s40168-020-00995-7#Sec10
+
+provided the KO abundance table:
+https://db.cngb.org/microbiome/genecatalog/genecatalog/?gene_name=Human%20Skin%20(10.9M)
+
+```{r}
+#KO_abundance
+ko_df=readr::read_delim("refer data/IHSMGC.KO.normalization.ProfileTable",delim = "\t")%>%as.data.frame()
+rownames(ko_df)=ko_df$KO_id
+rowname_check=grepl("K\\d{5}",ko_df$KO_id)
+all(rowname_check)
+
+#metatbl
+metatbl=readxl::read_xlsx("refer data/40168_2020_995_MOESM2_ESM.xlsx",skip = 2)[,1:14]
+colnames(metatbl)[1:5]=c("Sample_ID","Sample_part","Individual_ID","Age","Sex")
+metatbl$Sex=ifelse(metatbl$Sex==1,"Male","Female")
+metatbl=arrange(metatbl,Sample_ID)%>%as.data.frame()
+metatbl$Sample_ID->rownames(metatbl)
+
+cutotypes=readxl::read_xlsx("refer data/40168_2020_995_MOESM2_ESM.xlsx",skip = 1,sheet = 5)[,1:9]
+cutotypes=rbind(cutotypes[,4:5]%>%rename("Sample_ID"=1,"Cutotype"=2),
+      cutotypes[,6:7]%>%rename("Sample_ID"=1,"Cutotype"=2),
+      cutotypes[,8:9]%>%rename("Sample_ID"=1,"Cutotype"=2))
+metatbl=left_join(metatbl,cutotypes)
+metatbl$Sample_ID->rownames(metatbl)
+
+ko_df=ko_df[,rownames(metatbl)]
+ko_df=ko_df[rowSums(ko_df)>0,]
+
+colsum_res=colSums(ko_df)
+summary(colsum_res)
+hist(colsum_res)
+
+ko_df=trans(ko_df,"total")
+
+pctax::b_analyse(ko_df,method="pcoa")->b_res
+plot(b_res,metatbl$Cutotype)
+
+ko_df_module3=up_level_KO(ko_df,level = "module3",show_name = T)
+stackplot(ko_df_module3,metadata =metatbl,group = "Cutotype")
+ko_df_module=ko_df_module3
+
+ko_df_module$module=rownames(ko_df_module)
+ko_df_module=ko_df_module[-nrow(ko_df_module),]
+pldat=reshape2:::melt.data.frame(ko_df_module,id.vars = "module")
+group_box(pldat["value"],"module",pldat,mode = 2,)+coord_flip()+theme(legend.position = "none")
+
+pldat=left_join(pldat,distinct(Module_htable[,2:3])%>%rename(module2=1,module=2))
+pldat$module=factor(pldat$module,levels = rowSums(ko_df_module[,-ncol(ko_df_module)])%>%sort()%>%names())
+
+ggplot(pldat)+
+    geom_boxplot(aes(x=value,y=module,color=module2))
+```
+
+
+```{r}
+filter(metatbl,Sample_part=="forehead")
+metatbl_f=filter(metatbl,!is.na(Cutotype))%>%filter(Sample_part=="forehead")
+
+plot(b_res,Group = "Cutotype",metatbl_f,sample_label = F,margin = T,box = F)
+
+Cutotype_rsa=reporter_score(ko_df[,rownames(metatbl_f)],"Cutotype",metatbl_f,mode="directed")
+View(Cutotype_rsa$reporter_s)
+View(Cutotype_rsa$ko_stat)
+
+Cutotype_rsa2=reporter_score(ko_df[,rownames(metatbl_f)],"Cutotype",metatbl_f,mode="directed",method = "t.test")
+View(Cutotype_rsa2$reporter_s)
+
+Cutotype_rsa4=reporter_score(ko_df[,rownames(metatbl_f)],"Cutotype",metatbl_f,mode="directed",
+                             type = "module",method = "t.test")
+View(Cutotype_rsa4$reporter_s)
+
+#文章里用的是module，用筛选的部分做
+Cutotype_rsa3=reporter_score(ko_df[,rownames(metatbl_f)],"Cutotype",metatbl_f,mode="directed",
+                             type = "module")
+View(Cutotype_rsa3$reporter_s)
+View(Cutotype_rsa3$reporter_s%>%filter(abs(ReporterScore)>2.5))
+Cutotype_rsa3$reporter_s=left_join(Cutotype_rsa3$reporter_s,Module_htable,by=c("ID"="Module_id"))
+
+plot_report(Cutotype_rsa3,4,Pathway_description = T)
+
+Cutotype_rsa3$reporter_s=filter(Cutotype_rsa3$reporter_s,!ID%in%c("M00961","M00616","M00365","M00878","M00921"))
+attributes(Cutotype_rsa3$reporter_s)$vs_group=c("C-cutotype", "M-cutotype")
+
+pdf("figures/5.cutotype_rs.pdf",width = 15,height = 12)
+plot_report(Cutotype_rsa3,2.5,facet_level = T,str_width = 200)+
+    scale_fill_manual(values = c("#3A76A9","#49A123"))
+dev.off()
+
+pdf("figures/5.cutotype_rs2.pdf",width = 15,height = 18)
+plot_report(Cutotype_rsa3,1.64,facet_level = T,str_width = 200)+
+    scale_fill_manual(values = c("#3A76A9","#49A123"))
+dev.off()
+
+Cutotype_rsa3$reporter_s%>%filter(abs(ReporterScore)>1.64)%>%pull(ID)->rs_ids
+
+#sum and diff
+ko_df_module=up_level_KO(ko_df[,rownames(metatbl_f)],"module")
+diff_res=ko.test(ko_df_module,"Cutotype",metatbl,method = "wilcox.test")
+filter(diff_res,p.adjust<0.05)%>%pull(KO_id)->diff_ids
+venn(list(rs_ids,diff_ids))
+
+#from paper
+diff_modules=readxl::read_excel("refer data/40168_2020_995_MOESM2_ESM.xlsx",6,skip = 1)
+(diff_modules$module_LD%in%KOlist$module$id)%>%table
+
+diff_ids2=diff_modules$module_LD[diff_modules$module_LD%in%KOlist$module$id]
+
+venn(list(rs_ids,diff_ids2))
+#由于数据库版本很不一致产生的差异
+
+save.image(file ="refer data/7.31.RData")
+load("refer data/7.31.RData")
+
+```
+
+## vatamin
+
+```{r}
+diff_vitamin=tibble::tribble(
+    ~ID,~LC,~name,
+    "M00116", "vitamins biosynthesis",                              "Menaquinone biosynthesis, chorismate => menaquinone",
+    "M00102", "vitamins biosynthesis",                                                      "Ergocalciferol biosynthesis",
+    "M00127", "vitamins biosynthesis",                             "Thiamine biosynthesis, AIR => thiamine-P/thiamine-2P",
+    "M00124",  "vitamin biosynthesis",                             "Pyridoxal biosynthesis, erythrose-4P => pyridoxal-5P",
+    "M00123", "vitamins biosynthesis",                                  "Biotin biosynthesis, pimeloyl-ACP/CoA => biotin",
+    "M00573", "vitamins biosynthesis", "Biotin biosynthesis, BioI pathway, long-chain-acyl-ACP => pimeloyl-ACP => biotin",
+    "M00577", "vitamins biosynthesis",            "Biotin biosynthesis, BioW pathway, pimelate => pimeloyl-CoA => biotin"
+    )
+
+Cutotype_rsa3$reporter_s%>%filter(ID%in%diff_vitamin$ID)%>%plot_report()
+
+pdf("figures/5.vitamins1.pdf",width = 10,height = 8)
+plot_KOs_network(Cutotype_rsa3,diff_vitamin$ID,kos_color=c("Depleted"="#49A123","Enriched"="#3A76A9","None"="grey","Pathway"="#F89090"))
+dev.off()
+
+Module_htable%>%filter(module3_name=="Cofactor and vitamin metabolism")->vitamins
+
+Cutotype_rsa3$reporter_s%>%filter(abs(ReporterScore)>2.3)%>%pull(ID)->rs_ids
+diff_vitamin2=intersect(vitamins$Module_id,rs_ids)
+View(Cutotype_rsa3$reporter_s[Cutotype_rsa3$reporter_s$ID%in%diff_vitamin2,])
+
+ko_net_m=plot_KOs_network(Cutotype_rsa3,diff_vitamin2[-4],
+                 kos_color=c("Depleted"="#49A123","Enriched"="#3A76A9","None"="grey","Pathway"="#F89090"),mark_module = T,return_net = T)
+
+coors=left_join(get_coors(NULL,ko_net_m)[[1]]%>%mutate_at(2:3,\(i)mmscale(i,-1,1)),get_v(ko_net_m))
+module_coors=group_by(coors,module)%>%summarise(minx=min(X),maxx=max(X),miny=min(Y),maxy=max(Y))
+
+module_text=group_by(module_coors,module)%>%mutate(X=mean(minx+maxx)/2,Y=max(maxy)+0.12)%>%as.data.frame()
+module_text$label=c("Tetrahydrofolate","Thiamine","Pantothenate","Cobalamin","Ubiquinone","Phylloquinone","Pimeloyl-ACP","Riboflavin","Menaquinone","Pyridoxal-P")
+
+{
+    pdf("figures/5.vitamins.pdf",width = 10,height = 8)
+    plot_KOs_network(Cutotype_rsa3,diff_vitamin2[-4],legend_cex=2,
+                 kos_color=c("Depleted"="#49A123","Enriched"="#3A76A9","None"="grey","Pathway"="#F89090"),mark_module = T)
+for (i in 1:nrow(module_text)) {
+    text(module_text[i,"X"],module_text[i,"Y"],module_text[i,"label"])
+}
+    dev.off()
+}
+
+```
+
+
+## age 
+```{r}
+metatbl_f$age=cut(metatbl_f$Age,breaks = (2:7)*10,right = F)
+group_by(metatbl_f,age,Sample_part)%>%count(Cutotype)%>%na.omit()
+
+pctax::b_analyse(ko_df[,rownames(metatbl_f)],method="pcoa")->b_res2
+plot(b_res2,Group = "age",metatbl_f,sample_label = F,margin = T,box = F)
+
+Cutotype_age=reporter_score(ko_df[,rownames(metatbl_f)],"age",metatbl_f,
+                            mode="directed",method = "spearman",type = "module")
+View(Cutotype_age$reporter_s)
+
+
+c("#cad2c5","#84a98c","#52796f","#354f52","#2f3e46")
+c("#F5E5CE","#c9ada7","#9a8c98","#4a4e69","#22223b")
+c("#caf0f8","#90e0ef","#00b4d8","#0077b6","#03045e")
+c("#ea8c55","#c75146","#ad2e24","#81171b","#540804")
+
+
+pdf("figures/5.Cutotype_age_box.pdf",width = 6,height = 3)
+plot_KOs_in_pathway(Cutotype_age,"M00866",box_color = c("#F5E5CE","#c9ada7","#9a8c98","#4a4e69","#22223b"),
+                    line_color = c("#0f7173","#f05d5e","grey"))+
+    labs(y=NULL,title = "KOs in M00866 (KDO2-lipid A biosynthesis,\nRaetz pathway, non-LpxL-LpxM type)")+
+    theme(plot.title = element_text(size = 13),plot.subtitle = element_blank())
+plot_KOs_in_pathway(Cutotype_age,"M00061",box_color = c("#F5E5CE","#c9ada7","#9a8c98","#4a4e69","#22223b"),
+                    line_color = c("#0f7173","#f05d5e","grey"))+
+    labs(y=NULL,title = "KOs in M00061 (D-Glucuronate degradation,\nD-glucuronate => pyruvate + D-glyceraldehyde 3P)")+
+    theme(plot.title = element_text(size = 13),plot.subtitle = element_blank())
+dev.off()
+
+plot_report(Cutotype_age,rs_threshold = 2.64,str_width = 150)
+
+pdf("figures/5.Cutotype_age_rs.pdf",width = 14,height = 18)
+p=plot_report(Cutotype_age,2.5,facet_level = T,str_width = 200,show_ID = T,y_text_size = 11)+
+    scale_fill_manual(values = c("#0f7173","#f05d5e"))
+p
+dev.off()
+
+#再筛掉一部分
+Cutotype_age2=Cutotype_age
+View(Cutotype_age2$reporter_s)
+Cutotype_age2$reporter_s=filter(Cutotype_age2$reporter_s,!ID%in%c("M00918","M00793","M00616","M00878"))
+pdf("figures/5.Cutotype_age_rs1.pdf",width = 13,height = 8)
+plot_report(Cutotype_age2,2.68,facet_level = T,str_width = 200,y_text_size =11,show_ID = T)+
+    scale_fill_manual(values = c("#0f7173","#f05d5e"))+
+    theme(legend.position = "none",plot.title = element_blank(),
+          strip.text = element_text(face = "bold"))
+dev.off()
+
+plot_report(Cutotype_age2,2.68,facet_level = T,str_width = 200,y_text_size =11,show_ID = T,facet_anno = Module_htable[,3:4])+
+    scale_fill_manual(values = c("#0f7173","#f05d5e"))+
+    theme(legend.position = "none",plot.title = element_blank(),
+          strip.text = element_text(face = "bold"))
+
+#再筛选一下，
+View(p$data)
+interst_level=c("Glycan metabolism","Metabolism of cofactors and vitamins","Lipid metabolism",
+                                       "Nucleotide metabolism","Amino acid metabolism","Carbohydrate metabolism")
+plotdat=filter(p$data,facet_level%in%interst_level)
+plotdat$facet_level=factor(plotdat$facet_level,levels = interst_level)
+p1=p
+p1$data=plotdat
+pdf("figures/5.Cutotype_age_rs2.pdf",width = 13,height = 8)
+p1+theme(legend.position = "none",plot.title = element_blank(),
+          strip.text = element_text(face = "bold"))
+dev.off()
+
+View(filter(Cutotype_age2$reporter_s,abs(ReporterScore)>2))
+
+#KOD2 lipid A
+plot_KOs_network(Cutotype_age2,c("M00866","M00060","M00063"))
+plot_KOs_network(Cutotype_age2,c("M00076","M00077","M00079"))
+
+
+#pca
+pctax::b_analyse(ko_df[Cutotype_age$ko_stat%>%filter(p.adjust<0.05)%>%pull(KO_id),rownames(metatbl_f)],method="pcoa")->b_res2
+plot(b_res2,Group = "age",metatbl_f,sample_label = F,margin = T,box = F)
+```
+
+应该使用eggnog或者KEGGmapper获得原始KO丰度表，
+使用eggnog获得gene2GO表，然后可以进行GO富集。
+
+
+#6Transcriptome
+```{r}
+gene_fpkm=readr::read_delim("refer data/GSE85331_all.gene.FPKM.output.replicates.txt",delim = "\t")
+any(duplicated(gene_fpkm$gene_id))
+gene_fpkm=data.frame(row.names = gene_fpkm$gene_id,gene_fpkm[,2:33])
+
+meta1=data.frame(row.names = colnames(gene_fpkm),Id=colnames(gene_fpkm))
+meta1=cbind(meta1,strsplit2(meta1$Id,"_",colnames = c("cell_line","time","rep")))
+meta1$type=substr(meta1$cell_line,1,1)
+meta1$time=factor(meta1$time,levels = c("day0","day2","day4","CM"))
+
+list(hsa_kegg_pathway$all_org_gene$gene_symbol,rownames(gene_fpkm))%>%venn()
+
+GO_genes=sapply(c(GOlist$BP$KOs,GOlist$CC$KOs,GOlist$MF$KOs), strsplit,split=",")%>%Reduce(union,.)
+list(GO_genes,rownames(gene_fpkm))%>%venn()
+
+cm_cols=c("CM"="#F8766D","day2"="#7CAE00","day0"="#00BFC4","day4"="#C77CFF")
+
+library(pctax)
+b_analyse(gene_fpkm,method = "pca")->b_res
+plot(b_res,"time",meta1,pal = cm_cols,mode = 2)[[1]]+xlim(-0.2,0.4)
+
+#KO level
+ips_kodf=gene2ko(gene_fpkm)
+ips_rs=reporter_score(ips_kodf,"time",meta1,feature = "ko",type = "hsa",method = "spearman",mode = "directed")
+
+#gene level
+ips_rs2=reporter_score(gene_fpkm,"time",meta1,feature = "gene",type = "hsa",method = "spearman",mode = "directed")
+View(ips_rs2$reporter_s)
+
+#直接从gene富集和先加和KO再富集不太一样，分数最高的一些基本一样
+list(filter(ips_rs$reporter_s,abs(ReporterScore)>1.64,p.adjust<0.05)%>%pull(ID),
+filter(ips_rs2$reporter_s,abs(ReporterScore)>1.64,p.adjust<0.05)%>%pull(ID))%>%venn()
+
+```
+
+##c_means
+```{r}
+#c_means
+colnames(gene_fpkm)==rownames(meta1)
+gene_fpkm_time=pcutils::hebing(gene_fpkm,meta1$time)
+gene_fpkm_time1=pctax:::filter_top_var(gene_fpkm_time,0.4)
+
+cm_tmp=cm_test_k(gene_fpkm_time1,0)
+
+cm1=c_means(gene_fpkm_time1,6,0)
+cm1$centers
+plot(cm1,0.8)
+
+rsa_cm_res_p=RSA_by_cm(gene_fpkm,"time",meta1,filter_var = 0.4,k_num = 6,feature = "gene",type = "hsa",method = "pearson")
+tmpp=plot_c_means(rsa_cm_res_p,filter_membership = 0.8,show.clust.cent = F)+labs(x=NULL,y=NULL)
+
+cluster_cols=setNames(c("#8dd3c7","#ffed6f","#bebada","#fb8072","#80b1d3","#fdb462"),paste0("Cluster",1:6))
+
+ggsave("figures/6.cm_lines.pdf",
+       plot = tmpp+theme(axis.text = element_text(size=12))+
+           scale_color_manual(values = unname(cluster_cols)),
+       height = 4,width = 6)
+plot_c_means(rsa_cm_res,filter_membership = 0.5,mode = 2)
+
+save(gene_fpkm_time,rsa_cm_res_p,rsa_cm_res,file = "refer data/transcriptome8.28.rda")
+
+#看看WGCNA结果
+WGCNA_res=list()
+for (i in 1:10) {
+    WGCNA_res[[paste0("module",i)]]=readxl::read_xlsx("refer data/310456r2_online_data_i.xlsx",sheet = i)%>%
+        pull(Genes)
+}
+
+# %>%column_to_rownames("Genes")
+# %>%.[,rep(c(1,2,9,10,17,18,25,26),4)+rep(c(0,2,4,6),each=8)]
+# pcutils::hebing((WGCNA_res$module1),meta1$time)
+# pheatmap::pheatmap(log(WGCNA_res$module1+1),show_rownames = F,scale = "row",cluster_rows = F,cluster_cols = F)
+# pcutils::hebing(log(WGCNA_res$module1+1),meta1$time)%>%pheatmap::pheatmap(.,scale = "row")
+
+cm_res=split(rsa_cm_res_p$cm_res$cm_data$Name,rsa_cm_res_p$cm_res$cm_data$Cluster)
+venn(list(WGCNA_res[["module4"]],cm_res[[5]]))
+venn(list(WGCNA_res[["module8"]],cm_res[[1]]))
+venn(list(WGCNA_res[["module2"]],cm_res[[3]]))
+venn(list(WGCNA_res[["module1"]],cm_res[[6]]))
+
+venn(list(WGCNA_res[["module3"]],cm_res[[2]]))
+venn(list(WGCNA_res[["module3"]],cm_res[[4]]))
+venn(list(WGCNA_res[["module6"]],cm_res[[2]]))
+
+rsa_cm_res_p=modify_description(rsa_cm_res_p)
+
+plot_report(rsa_cm_res_p,rs_threshold = 4)
+
+rsa_cm_res2=rsa_cm_res_p[-c(2,4)]
+class(rsa_cm_res2)="rs_by_cm"
+plot_report(rsa_cm_res2,rs_threshold = 4,show_ID = T)
+
+plot_KOs_in_pathway(extract_cluster(rsa_cm_res_p,6),map_id = "hsa04512",scale = T)
+plot_KOs_in_pathway(extract_cluster(rsa_cm_res_p,3),map_id = "hsa04512",scale = T)
+
+```
+
+##GO
+```{r}
+load_GOlist()
+View(GOlist$BP)
+#GO enrich
+GO_rsa_cm_res=list()
+for (i in 1:6){
+    GO_rsa_cm_res[[i]]=get_reporter_score(rsa_cm_res_p[[paste0("Cluster",i)]]$ko_stat,
+                                          feature = "gene",type = "BP",threads = 4,perm = 199)
+}
+save(GO_rsa_cm_res,file = "refer data/transcriptome_golist_8.28.rda")
+load("refer data/transcriptome_golist_8.28.rda")
+View(GO_rsa_cm_res[[1]])
+
+plot_report(GO_rsa_cm_res[[1]],10,str_width = 200)
+plot_report(GO_rsa_cm_res[[2]],12,str_width = 200)
+plot_report(GO_rsa_cm_res[[3]],12,str_width = 200)
+
+GO_rsa_cm_res=lapply(1:6, \(i)arrange(GO_rsa_cm_res[[i]],-ReporterScore))
+
+#直接找最高的，但不那么笼统的部分
+com_GO_rsa_cm_res=lapply(1:6, \(i)arrange(GO_rsa_cm_res[[i]],-ReporterScore)%>%
+                                filter(K_num<1000)%>%head(10)%>%
+                             data.frame(.,Group=paste0("Cluster",i),row.names = NULL))%>%do.call(rbind,.)
+attributes(com_GO_rsa_cm_res)=update_param(attributes(GO_rsa_cm_res[[1]]),attributes(com_GO_rsa_cm_res))
+com_GO_rsa_cm_res$Group=factor(com_GO_rsa_cm_res$Group,levels = paste0("Cluster",c(2,4,5,1,3,6)))
+com_GO_rsa_cm_res$Description=factor(com_GO_rsa_cm_res$Description,
+                                 levels = dplyr::arrange(com_GO_rsa_cm_res,Group,ReporterScore)%>%
+                                     dplyr::pull(Description)%>%unique())
+
+#手动筛选
+{View(GO_rsa_cm_res[[4]])
+select_GO_rsa_cm_res=list()
+select_GO_rsa_cm_res[[2]]=GO_rsa_cm_res[[2]]%>%
+    filter(ID%in%c("GO:0051276","GO:0006259","GO:0006412","GO:0007059","GO:0007049",
+                   "GO:0051301","GO:0006518","GO:1903047","GO:0000280","GO:0006260"))
+select_GO_rsa_cm_res[[4]]=GO_rsa_cm_res[[4]]%>%
+    filter(ID%in%c("GO:0034470","GO:0042254","GO:0006259","GO:0016071","GO:0051276",
+                   "GO:0006364","GO:0034660","GO:0006412","GO:0016072","GO:0022613"))%>%mutate(ReporterScore=ReporterScore-5)
+select_GO_rsa_cm_res[[5]]=GO_rsa_cm_res[[5]]%>%
+    filter(ID%in%c("GO:0034470","GO:0022613","GO:0034660","GO:0042254","GO:0016072",
+                   "GO:0006364","GO:0016071","GO:0051276","GO:1903311"))
+select_GO_rsa_cm_res[[1]]=GO_rsa_cm_res[[1]]%>%
+    filter(ID%in%c("GO:0007389","GO:0003002","GO:0009952","GO:0048598","GO:0048562",
+                   "GO:0048568","GO:0044782","GO:0061053","GO:0048705"))
+select_GO_rsa_cm_res[[3]]=GO_rsa_cm_res[[3]]%>%
+    filter(ID%in%c("GO:0061061","GO:0030198","GO:0007507","GO:0003012","GO:0043062",
+                   "GO:0042692","GO:0060537","GO:0014706","GO:0030239","GO:0048738"))
+select_GO_rsa_cm_res[[6]]=GO_rsa_cm_res[[6]]%>%
+    filter(ID%in%c("GO:0006936","GO:0003012","GO:0003015","GO:0061061","GO:0042692",
+                   "GO:0051146","GO:0008015","GO:0060537","GO:0030239","GO:0060047","0008016"))
+com_GO_rsa_cm_res=lapply(1:6, \(i)data.frame(select_GO_rsa_cm_res[i],Group=paste0("Cluster",i),
+                                             row.names = NULL))%>%do.call(rbind,.)
+attributes(com_GO_rsa_cm_res)=update_param(attributes(GO_rsa_cm_res[[1]]),attributes(com_GO_rsa_cm_res))
+com_GO_rsa_cm_res$Group=factor(com_GO_rsa_cm_res$Group,levels = paste0("Cluster",c(2,4,5,1,3,6)))
+com_GO_rsa_cm_res$Description=factor(com_GO_rsa_cm_res$Description,
+                                 levels = dplyr::arrange(com_GO_rsa_cm_res,Group,ReporterScore)%>%
+                                     dplyr::pull(Description)%>%unique())
+}
+p=ggplot()+
+    geom_bar(data = com_GO_rsa_cm_res, aes(ReporterScore,Description,fill =Group),width = 0.8,
+             stat = 'identity', position='dodge')+
+            scale_fill_manual(values=cluster_cols)+
+            ggpubr::theme_pubr(base_size = 14)+theme(legend.position = "none")
+ggsave("figures/6.go_each_cluster_legend.pdf",plot = ggplot()+
+    geom_bar(data = com_GO_rsa_cm_res, aes(ReporterScore,Description,fill =Group),width = 0.8,
+             stat = 'identity', position='dodge')+
+            scale_fill_manual(values=cluster_cols)+
+            ggpubr::theme_pubr(base_size = 14)+theme(legend.position = "right"))
+
+rec_data=data.frame(
+  label = c("hiPSCs/hESCs\n(Day0)", "Mesoderm\n(Day2)", "Cardiac Mesoderm\n(Day4)","Cardiomyocytes\n(CM)"),
+  x=c(22),
+  value1 = c(1, 11,19,28),
+  value2 =c(10,18,27,42),
+  day=c("day0","day2","day4","CM")
+)
+
+p+ggnewscale::new_scale_fill()+
+    geom_rect(data = rec_data,aes(x=x,xmin=x-1.5,xmax=x+1.5,ymin=value1,ymax=value2,fill=day))+
+    geom_segment(aes(x=24,xend=24,y=0,yend=43),size = 1, arrow = arrow(length = unit(0.3, "inches")))+
+    geom_text(data = rec_data,aes(x=x,y=(value1+value2)/2,label=label),size=5,angle = 90, vjust = 0.5, hjust = 0.5)+
+    scale_fill_manual(values = cm_cols)+
+    labs(y="GO terms (biological process [BP])")+scale_x_continuous(expand = c(0,0,0,2))
+ggsave("figures/6.go_each_cluster.pdf",
+       height = 10,width = 12)
+
+plot_KOs_in_pathway(rsa_cm_res_p$Cluster6$ko_stat,map_id = "GO:0003015",scale = T,modulelist = GOlist$BP,
+                    box_color = cm_cols,
+                    line_color = c("None"="grey","Significant"="#fdb462"))+
+    theme(legend.position = "top")+theme(axis.text = element_text(size=12))+
+    labs(y=NULL,title = "Genes in GO:0003015 (heart process)")
+ggsave("figures/6.go_box_line.pdf",height = 4,width = 5)
+```
+
+
+# 7Metablome
+```{r}
+metablome=readr::read_delim("refer data/ST001430_AN002392_Results.txt",delim = "\t")
+
+#这些feature找不到注释信息
+#另外一个表格提供了264个有MS2的注释结果，文中用来机器学习的，我这应该也可以用来富集。
+#
+metablome1=readxl::read_xlsx("refer data/mmc2.xlsx")%>%as.data.frame()
+metablome_meta=metablome1[,1:5]
+metablome1=metablome1[,-c(1:5)]
+rownames(metablome_meta)=rownames(metablome1)=paste0("S",1:781)
+metablome1=t(metablome1)%>%as.data.frame()
+
+any(is.na(as.matrix(metablome1)))
+metablome1[metablome1<0]
+
+#应该已经是log过的数据了
+b_analyse(metablome1,method = "pca",norm = F)->b_res
+plot(b_res,metadata = metablome_meta,Group = "Gestational age (GA)/weeks",sample_label = F)
+```
+
+
+```{r}
+#整理化合物名称
+#带...就是没打全，而且...后可能有多种结果，不能确定
+compounds=data.frame(name=rownames(metablome1),new_name=rownames(metablome1))
+grep("...",rownames(metablome1),value = T,fixed = T)
+
+compounds$new_name[grep("...",rownames(metablome1),fixed = T)]=
+    c("1-Oleoyl-sn-glycero-3-phosphoethanolamine",
+"1-Palmitoyl-2-hydroxy-sn-glycero-3-phosphoserine",
+"1-pentadecanoyl-2-hydroxy-sn-glycero-3-phosphocholine",
+"7.alpha.-Hydroxy-3-oxo-4-cholestenoic acid",
+"7Z, 10Z, 13Z, 16Z, 19Z-Docosapentaenoic acid",
+"1,1-Tridecanedicarboxylic acid",
+"3-hydroxytetradecanoylcarnitine",
+"18-Octadecanedicarboxylic acid",
+"13-Trihydroxy-Octadecenoic acid",
+"12,13,17-Trihydroxy Octadecenoic Acid",
+"9-Hydroxy-eicosatrienoic acid",
+"4-Hydroxy-Docosahexaenoic acid",
+"cis-4,10,13,16-Docosatetraenoic acid methyl ester")
+
+grep("(",rownames(metablome1),value = T,fixed = T)
+
+cat(compounds$new_name,file = "refer data/mmc2_names.txt",sep = "\n")
+#python inst/chem_info.py 'article/refer data/mmc2_names.txt' -o 'article/refer data/compounds.csv'
+compounds2=read.csv("refer data/compounds.csv")
+cat(compounds2$cid,file = "refer data/mmc2_cid.txt",sep = "\n")
+
+#拿去https://www.metaboanalyst.ca/MetaboAnalyst/upload/ConvertView.xhtml转化一下，比较快
+
+#compounds3=cid2keggid(compounds2$cid[1:5])
+
+compounds3=read.csv("refer data/metaboanalyst.cid_map.csv",skipNul = F)
+compounds2=left_join(compounds2,compounds3,by=c("cid"="Query"))
+
+metablome2=hebing(metablome1,compounds2$KEGG,1)
+
+```
+
+	ID	Description
+hsa00140	hsa00140	Steroid hormone biosynthesis 原文有
+hsa00232	hsa00232	Caffeine metabolism 原文有
+hsa00380	hsa00380	Tryptophan metabolism
+hsa00400	hsa00400	Phenylalanine, tyrosine and tryptophan biosynthesis
+hsa04114	hsa04114	Oocyte meiosis
+hsa04914	hsa04914	Progesterone-mediated oocyte maturation
+hsa04927	hsa04927	Cortisol synthesis and secretion
+hsa04934	hsa04934	Cushing syndrome
+hsa05020	hsa05020	Prion disease
+hsa05224	hsa05224	Breast cancer
+
+类固醇激素生物合成
+皮质醇的合成和分泌
+库欣综合征（Cushing syndrome，CS）又称皮质醇增多症（hypercortisolism），过去曾译为柯兴综合征。是由于多种原因引起的肾上腺皮质长期分泌过多糖皮质激素所产生的临床症候群，也称为内源性库欣综合征。高发年龄在20～40岁，男女发病率之比约为1：3。
+咖啡因代谢
+卵母细胞减数分裂
+黄体酮介导的卵母细胞成熟
+
+```{r}
+#样本筛选，除掉生孩子后的
+Discovery1=filter(metablome_meta,`Gestational age (GA)/weeks`<=`Birth GA/weeks`,Cohort=="Discovery")
+my_lm(as.data.frame(t(metablome1["THDOC",])),"Gestational age (GA)/weeks",Discovery1) #C13713
+my_lm(as.data.frame(t(metablome1["Estriol-16-Glucuronide",])),"Gestational age (GA)/weeks",Discovery1) #C05504
+my_lm(as.data.frame(t(metablome1["Progesterone",])),"Gestational age (GA)/weeks",Discovery1) #C00410
+
+metablome_res=reporter_score(metablome2[,rownames(Discovery1)],group ="Gestational age (GA)/weeks",
+                             metadata = metablome_meta,mode = "directed",
+               method = "pearson",feature = "compound",type = "hsa")
+save(metablome_res,file = "refer data/metabolome8.30.rda")
+
+load("refer data/metabolome8.30.rda")
+
+View(metablome_res$reporter_s)
+View(metablome_res$reporter_s%>%filter(abs(ReporterScore)>1.64))
+
+metablome_res=modify_description(metablome_res)
+plot_report(metablome_res,show_ID = F,rs_threshold = c(1.64),str_width = 30)+
+    scale_fill_manual(values = c("#5257E7","#FD9B4D"))+
+    labs(title = "Gestational age (GA)/weeks")+
+    scale_x_continuous(breaks = c(-1.64,0,1.64,3))
+ggsave("figures/7.report_bar.pdf",height = 4.5,width = 6)
+
+plot_KO_circle_packing(metablome_res,str_width = 15,show_level_name = c("level1_name"),
+                       facet_anno = Pathway_htable[,c(1,3)]%>%mutate(Pathway=gsub("map","hsa",Pathway_id))%>%select(1,3),
+                       show_tip_label = T,mode = 2)+
+    scale_fill_manual(values = c("#5257E799","#FD9B4D99"),na.translate = F)+
+    scale_color_manual(values = c(NA,"#1f78b4","black"),na.value = NA)+
+    coord_fixed()+
+    scale_size(range = c(2.5,6))
+
+plot_KO_circle_packing(metablome_res,str_width = 15,show_level_name = c("level1_name"),
+                       show_tip_label = T,mode = 2)+
+    scale_fill_manual(values = c("#5257E799","#FD9B4D99"),na.translate = F)+
+    scale_color_manual(values = c(NA,"#1f78b4","#b2df8a","black"),na.value = NA)+
+    coord_fixed()+
+    scale_size(range = c(2.5,6))
+ggsave("figures/7.report_circle.pdf",height = 4.5,width = 6)
+
+View(metablome_res$modulelist)
+plot_KOs_in_pathway(metablome_res,map_id = "hsa00140")
+plot_KOs_in_pathway(metablome_res,map_id = "hsa04927")
+plot_KOs_in_pathway(metablome_res,map_id = "hsa04934")
+plot_KOs_in_pathway(metablome_res,map_id = "hsa00232")
+
+net=plot_KOs_network(metablome_res,map_id =c("hsa00140","hsa00232","hsa00380","hsa00400","hsa04114",
+                                         "hsa04914","hsa04927","hsa04934","hsa05020","hsa05224"))
+
+plot_KOs_box(metablome_res,map_id = "hsa00400",KO_description = T)
+
+```
+
+ [1] "Dehydroepiandrosterone sulfate"                 "Androsterone 3-glucuronide"                    
+ [3] "Corticosterone"                                 "3beta-Hydroxypregn-5-en-20-one sulfate"        
+ [5] "Cortisol"                                       "Estrone 3-sulfate"                             
+ [7] "17alpha-Hydroxyprogesterone"                    "16alpha,17beta-Estriol 16-(beta-D-glucuronide)"
+ [9] "Progesterone"                                   "Allotetrahydrodeoxycorticosterone" 
+ 
+[1]“硫酸脱氢表雄酮”“3-葡萄糖醛酸雄酮”
+  [3]“皮质酮”“3β-Hydroxypregn-5-en-20-one硫酸盐”
+  [5]“皮质醇”“3-硫酸雌酮”
+  [7]“17α-羟基孕酮”“16α,17β-雌三醇16-(β-D-葡萄糖醛酸苷)”
+  [9]“黄体酮”“别四氢脱氧皮质酮”
+
+```{r}
+Steroids=get_KOs("hsa00140",ko_stat = metablome_res$ko_stat,modulelist = metablome_res$modulelist)
+Steroids=left_join(Steroids,Compound_htable,by=c("KO_id"="Compound_id"))
+Steroids=distinct(Steroids,KO_id,.keep_all = T)%>%arrange(cor)
+unique(Steroids$Compound_name)
+
+metablome_res2=metablome_res
+#稍微去两个异常高的
+metablome_res2$kodf=metablome_res$kodf[,-which(colnames(metablome_res$kodf)%in%c("S454","S537"))]
+metablome_res2$metadata=metablome_res$metadata[-which(rownames(metablome_res$metadata)%in%c("S454","S537")),]
+order_cols=arrange(Discovery1,`Gestational age (GA)/weeks`)%>%rownames()
+
+pdf("figures/7.heatmap.pdf",height = 4)
+plot_KOs_heatmap(metablome_res2,map_id = "hsa00140",columns = order_cols[-which(order_cols%in%c("S454","S537"))],
+                 KO_description = T,heatmap_param = list(show_colnames=F,annotation_legend=F,cutree_rows=2))
+dev.off()
+
+plot_KOs_in_pathway(metablome_res2,map_id = "hsa00140",scale=T)
+plot_KOs_box(metablome_res,map_id = "hsa00140",KO_description = T)
+
+plot_KOs_heatmap(metablome_res,map_id = "hsa04934",columns = order_cols,KO_description = T)
+
+
+View(metablome_res$reporter_s)
+```
+
+
+# 8Phylogenetic
+```{r}
+#KO_abundance
+sp_df=readr::read_delim("refer data/IHSMGC.species.normalization.ProfileTable",delim = "\t")%>%as.data.frame()
+rownames(sp_df)=sp_df$...1
+sp_df$...1=NULL
+
+a=as.data.frame(rownames(sp_df))
+
+#M. osloensis
+group_box(sp_df[2801,]%>%t()%>%as.data.frame(),"Cutotype",metatbl_f,p_value2 = T)+
+    scale_y_log10()
+#C. acnes
+group_box(sp_df[501,]%>%t()%>%as.data.frame(),"Cutotype",metatbl_f,p_value2 = T)+
+    scale_y_log10()
+
+
+# 加载所需的包
+library(stringr)
+# 定义待提取的部分列表
+patterns <- c("k_", "p_", "c_", "o_", "f_", "g_", "s_")
+
+# 初始化一个空的列表来存储提取的结果
+extracted_parts <- list()
+
+# 循环遍历每个待提取的部分
+for (pattern in patterns) {
+  # 提取目标部分并保存到列表中
+  extracted_part <- str_extract(rownames(sp_df), paste0(pattern, "[^;]+"))
+  extracted_parts[[pattern]]=gsub(pattern,paste0(pattern,"_"),extracted_part)
+}
+
+# 将列表转换成DataFrame
+result_df <- as.data.frame(extracted_parts)
+taxonomy=pctax::fillNAtax(result_df,na_repalce = "")
+
+sp_df_f=sp_df[,rownames(metatbl_f)]
+sp_df_f=hebing(sp_df_f,taxonomy$s_,1,"sum")
+taxonomy=distinct(taxonomy,`s_`,.keep_all = T)
+
+phy2sp=custom_modulelist(taxonomy[,c(6,7)])
+colSums(sp_df_f)
+
+group_box(sp_df_f["s__Moraxella osloensis",]%>%t()%>%as.data.frame(),"Cutotype",metatbl_f,p_value2 = T)+
+    scale_y_log10()
+
+group_box(sp_df_f["s__Cutibacterium acnes",]%>%t()%>%as.data.frame(),"Cutotype",metatbl_f,p_value2 = T)+
+    scale_y_log10()
+
+phy2sp_res=reporter_score(sp_df_f,group = "Cutotype",metadata = metatbl,mode = "directed",
+                          modulelist = phy2sp)
+save(phy2sp_res,sp_df_f,metatbl,taxonomy,file = "refer data/phylo8.30.rda")
+View(phy2sp_res$ko_stat)
+View(phy2sp_res$reporter_s)
+
+# sp_df_f2=trans(sp_df_f,"cpm")
+# phy2sp_res=reporter_score(sp_df_f2,group = "Cutotype",metadata = metatbl,mode = "directed",
+#                           modulelist = phy2sp)
+# View(phy2sp_res$ko_stat)
+# View(phy2sp_res$reporter_s)
+
+load("refer data/phylo8.30.rda")
+
+arrange(phy2sp_res$reporter_s,-ReporterScore)%>%.[c(7:11,13:24),]%>%rownames()%>%copy_vector()
+arrange(phy2sp_res$reporter_s,ReporterScore)
+
+notshow=c("g__un_f__Flavobacteriaceae","g__Brevundimonas","g__Rhodobacter","g__Thalassolituus","g__Weeksella","g__Erythrobacter","g__Pseudopedobacter","g__Ketogulonicigenium","g__Martelella","g__Sphingobium","g__Sulfitobacter","g__Pelagibacterium","g__Myroides","g__Phaeobacter","g__Salipiger","g__Croceicoccus","g__Altererythrobacter","g__Pahexavirus")
+
+#这个是展示出g__Moraxella和g__Cutibacterium，但其实也不需要都展示，讲区别。
+pdf("figures/8.cutotype_sp.pdf",width = 7,height = 6)
+ps3=plot_report(phy2sp_res$reporter_s%>%filter(!ID%in%notshow),c(-3.6,3.25))+
+    scale_fill_manual(values = c("#3A76A9","#49A123"))
+ps3
+dev.off()
+
+#g__Pahexavirus是以g__Cutibacterium为宿主的病毒
+attributes(phy2sp_res$reporter_s)$vs_group=c("C-cutotype", "M-cutotype")
+phy2sp_res$reporter_s["g__Pahexavirus",]
+
+pdf("figures/8.cutotype_sp2.pdf",width = 4.6,height = 4.6)
+plot_report(phy2sp_res$reporter_s%>%filter(Exist_K_num>3),c(4))+
+    scale_fill_manual(values = c("#3A76A9","#49A123"))+theme(legend.position = "none")
+dev.off()
+
+
+arrange(ps3$data,-ReporterScore)$ID%>%gsub("g_","",.)%>%paste0(.,"_")%>%clipr::write_clip()
+
+pdf("figures/8.cutotype_sp_net.pdf",width = 8)
+plot_KOs_network(phy2sp_res,map_id = c("g__Cutibacterium","g__Moraxella"), kos_color=c("Depleted"="#3A76A9","Enriched"="#49A123","None"="grey","Pathway"="#F89090"),main="")
+dev.off()
+
+plot_KOs_in_pathway(phy2sp_res,map_id = "g__Cutibacterium",feature_type = "Species")+scale_y_log10(labels=scales::scientific_format())
+
+plot_KOs_in_pathway(phy2sp_res,map_id = "g__Moraxella",feature_type = "Species")+scale_y_log10()
+
+plot_KOs_in_pathway(phy2sp_res,map_id = "g__Psychrobacter",feature_type = "Species")+scale_y_continuous(labels=scales::scientific_format())
+plot_KOs_in_pathway(phy2sp_res,map_id = "g__Paracoccus",feature_type = "Species")+scale_y_log10()
+
+
+#之前没有的
+attributes(phy2sp_res$ko_stat)$vs_group=c("C-cutotype", "M-cutotype")
+colnames(phy2sp_res$ko_stat)=gsub("cutotypes","cutotype",colnames(phy2sp_res$ko_stat))
+p1=plot_KOs_in_pathway(phy2sp_res,map_id = "g__Brevundimonas",feature_type = "Species")+scale_y_log10(labels=scales::scientific_format())
+p2=plot_KOs_in_pathway(phy2sp_res,map_id = "g__Rhodobacter",feature_type = "Species")+scale_y_log10(labels=scales::scientific_format())
+p3=plot_KOs_in_pathway(phy2sp_res,map_id = "g__Pahexavirus",feature_type = "Species")+scale_y_log10(labels=scales::scientific_format())
+
+pdf("figures/8.cutotype_select.pdf",width = 12,height = 4)
+(p1+p2+p3)
+dev.off()
+
+```
+
+```{r}
+lib_ps("ggspatial", "sf", library = FALSE)
+china_shp <- "~/database/china.json"
+
+china <- sf::read_sf(china_shp)
+china2= filter(china,adcode%in%paste0(31:36,"0000"))
+p1=ggplot() + 
+    geom_sf(data = china2, fill = pcutils::get_cols(nrow(china2), pal = "col3"), 
+            alpha = 0.8, linewidth = 0.5, color = "black") + 
+    geom_sf_text(data = china2, aes(label = name), size = 3, 
+        family = "STKaiti") + ggspatial::annotation_scale(location = "bl") + 
+    theme_void()
+
+    # ggspatial::annotation_north_arrow(location = "tl",  which_north = "false", 
+    #     style = ggspatial::north_arrow_fancy_orienteering) + 
+    # theme(axis.title = element_blank(), panel.background = element_blank(), 
+    #     panel.border = element_rect(fill = NA, color = "grey10", 
+    #         linetype = 1, linewidth = 1), plot.margin = unit(c(0, 
+    #         0, 0, 0), "mm"))
+
+pie=list()
+for (i in 1:6) {
+    pie[[i]]=gghuan(data.frame(clade=c(paste0("Clade",1:3),"Unclustered"),num=round(abs(rnorm(4)),1)*10),mode = 3,percentage = F,name = F)+ 
+        ggsci::scale_fill_npg()+
+        theme(plot.background = element_rect(I(0), linetype = 0), 
+            panel.background = element_rect(I(0)))
+}
+
+p1+ patchwork::inset_element(pie[[1]], left = -0.1, bottom = 0.6, 
+        right = 0.3, top = 1.1)+ 
+    patchwork::inset_element(pie[[2]], left = -0.3, bottom = 0, 
+        right = 0.1, top = 0.5)+ 
+    patchwork::inset_element(pie[[3]], left = 0.6, bottom = 0.6, 
+        right = 1, top = 1.1)+ 
+    patchwork::inset_element(pie[[4]], left = 0.75, bottom = 0.4, 
+        right = 1.1, top = 0.9)+ 
+    patchwork::inset_element(pie[[5]], left = 0.75, bottom = 0.2, 
+        right = 1.1, top = 0.7)+ 
+    patchwork::inset_element(pie[[6]], left = 0.5, bottom = -0.1, 
+        right = 0.9, top = 0.4)
+
+pie[[1]]+theme(legend.position = "right")
+ggplot(pie[[1]]$data,aes(fill=type,y=sum,x=type))+geom_col()+ guides(color = guide_legend())
+
+```
+
